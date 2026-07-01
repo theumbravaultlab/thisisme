@@ -19,7 +19,7 @@ export function CategoryCard({ title, emoji, fields, profile, onEdit }: Props) {
   const rows = fields.filter((f) => profile.visibility[f] && fieldToText(f, profile.data));
 
   return (
-    <div className="glass relative h-full w-full rounded-2xl p-3.5 text-left transition group-hover:-translate-y-0.5">
+    <div className="glass relative w-full rounded-2xl p-3.5 text-left transition group-hover:-translate-y-0.5">
       {onEdit && (
         <button
           onPointerDownCapture={(e) => e.stopPropagation()}
@@ -57,7 +57,7 @@ function FieldRow({ field, value }: { field: FieldKey; value: string }) {
           className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] ring-1 ring-fg/20"
           style={{ background: value, color: contrastText(value) }}
         />
-        <span className="truncate text-sm font-medium">{value}</span>
+        <span className="break-words text-sm font-medium">{value}</span>
       </div>
     );
   }

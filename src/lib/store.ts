@@ -62,6 +62,7 @@ export const DEFAULT_PROFILE: Profile = {
     address: false,
   },
   theme: "dark",
+  cardView: "grouped",
 };
 
 export function loadProfile(): Profile {
@@ -75,6 +76,7 @@ export function loadProfile(): Profile {
       data: { ...DEFAULT_PROFILE.data, ...parsed.data },
       visibility: { ...DEFAULT_PROFILE.visibility, ...parsed.visibility },
       theme: parsed.theme ?? DEFAULT_PROFILE.theme,
+      cardView: parsed.cardView ?? DEFAULT_PROFILE.cardView,
       positions: parsed.positions ?? {},
     };
   } catch {
@@ -96,6 +98,7 @@ interface ProfileRow {
   visibility?: Partial<Profile["visibility"]>;
   positions?: Profile["positions"];
   theme?: Profile["theme"];
+  cardView?: Profile["cardView"];
 }
 
 function mergeRow(row: ProfileRow): Profile {
@@ -103,6 +106,7 @@ function mergeRow(row: ProfileRow): Profile {
     data: { ...DEFAULT_PROFILE.data, ...row.data },
     visibility: { ...DEFAULT_PROFILE.visibility, ...row.visibility },
     theme: row.theme ?? DEFAULT_PROFILE.theme,
+    cardView: row.cardView ?? DEFAULT_PROFILE.cardView,
     positions: row.positions ?? {},
   };
 }

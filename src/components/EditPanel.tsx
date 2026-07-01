@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { CATEGORIES, FIELD_META, FieldKey, Profile, ProfileData } from "@/lib/types";
+import { CATEGORIES, FIELD_META, FieldKey, Profile, ProfileData, categoryOfField } from "@/lib/types";
 import { CardBody } from "./CardBody";
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   update: <K extends keyof ProfileData>(key: K, value: ProfileData[K]) => void;
   toggleVisibility: (key: FieldKey) => void;
   focusCategory: string | null;
+  focusField?: FieldKey | null;
 }
 
 // Categories that have at least one visible field — open these by default.
@@ -28,6 +29,7 @@ export function EditPanel({
   update,
   toggleVisibility,
   focusCategory,
+  focusField,
 }: Props) {
   const [expanded, setExpanded] = useState<FieldKey | null>(null);
   const [openCats, setOpenCats] = useState<Set<string>>(() =>
@@ -35,14 +37,25 @@ export function EditPanel({
   );
   const [showHidden, setShowHidden] = useState<Set<string>>(new Set());
 
-  // When opened via a HUD card, jump straight to that category (revealing its
-  // hidden fields too, so everything in the group is reachable at a glance).
+  // Grouped mode: jump straight to that category (revealing its hidden
+  // fields too, so everything in the group is reachable at a glance).
   useEffect(() => {
     if (!focusCategory) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenCats((s) => new Set(s).add(focusCategory));
     setShowHidden((s) => new Set(s).add(focusCategory));
   }, [focusCategory]);
+
+  // Detailed mode: jump to the one field's own editor, opening its parent
+  // category along the way.
+  useEffect(() => {
+    if (!focusField) return;
+    const cat = categoryOfField(focusField);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpenCats((s) => new Set(s).add(cat));
+    setShowHidden((s) => new Set(s).add(cat));
+    setExpanded(focusField);
+  }, [focusField]);
 
   const toggleCat = (title: string) =>
     setOpenCats((s) => {

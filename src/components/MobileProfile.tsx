@@ -1,27 +1,24 @@
 "use client";
 
 import { motion } from "motion/react";
-import { CATEGORIES, Profile } from "@/lib/types";
+import { Profile } from "@/lib/types";
+import { getHudCards, HudCardSpec } from "@/lib/hudCards";
 import { Silhouette } from "./Silhouette";
 import { CosmicBackdrop } from "./CosmicBackdrop";
 import { CategoryCard } from "./CategoryCard";
 
-const HUD_CATEGORIES = CATEGORIES.map((c) => ({
-  ...c,
-  fields: c.fields.filter((f) => f !== "photo" && f !== "name"),
-})).filter((c) => c.fields.length > 0);
-
-// Phone layout: the figure as a hero, then a tappable list of category cards.
+// Phone layout: the figure as a hero, then a tappable list of cards (grouped
+// by category, or one per stat, depending on the view mode).
 export function MobileProfile({
   profile,
-  onEditCategory,
+  onEditCard,
   interactive = true,
 }: {
   profile: Profile;
-  onEditCategory: (title: string) => void;
+  onEditCard: (card: HudCardSpec) => void;
   interactive?: boolean;
 }) {
-  const visible = HUD_CATEGORIES.filter((c) => c.fields.some((f) => profile.visibility[f]));
+  const visible = getHudCards(profile.cardView, profile.visibility);
 
   return (
     <div className="w-full">
@@ -37,32 +34,32 @@ export function MobileProfile({
         <p className="mt-4 text-center text-xs text-fg-muted">Tap a card to edit</p>
       )}
 
-      {/* category cards */}
+      {/* cards */}
       <div className="mt-2 grid grid-cols-1 gap-3">
-        {visible.map((cat, i) =>
+        {visible.map((card, i) =>
           interactive ? (
             <motion.button
-              key={cat.title}
-              onClick={() => onEditCategory(cat.title)}
+              key={card.key}
+              onClick={() => onEditCard(card)}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
-              aria-label={`Edit ${cat.title}`}
+              aria-label={`Edit ${card.title}`}
               className="block text-left active:scale-[0.98]"
             >
               <CategoryCard
-                title={cat.title}
-                emoji={cat.emoji}
-                fields={cat.fields}
+                title={card.title}
+                emoji={card.emoji}
+                fields={card.fields}
                 profile={profile}
               />
             </motion.button>
           ) : (
-            <div key={cat.title}>
+            <div key={card.key}>
               <CategoryCard
-                title={cat.title}
-                emoji={cat.emoji}
-                fields={cat.fields}
+                title={card.title}
+                emoji={card.emoji}
+                fields={card.fields}
                 profile={profile}
               />
             </div>

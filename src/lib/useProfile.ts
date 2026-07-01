@@ -60,6 +60,9 @@ export function useProfile() {
         if (!active) return;
         try {
           const { profile: cloud, isEmpty } = await loadProfileCloud(supabase, u.id);
+          // cardView is a client-only preference (not part of the Supabase
+          // row), so always carry over whatever's saved locally.
+          const localCardView = loadProfile().cardView;
           if (isEmpty) {
             const local = loadProfile();
             try {
@@ -69,7 +72,7 @@ export function useProfile() {
             }
             if (active) setProfile(local);
           } else if (active) {
-            setProfile(cloud);
+            setProfile({ ...cloud, cardView: localCardView });
           }
         } catch {
           if (active) setProfile(loadProfile());
@@ -134,12 +137,15 @@ export function useProfile() {
       setSaveStatus("saving");
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
+        // Always mirror to localStorage too — it's the source of truth for
+        // purely client-side preferences (like cardView) that aren't part of
+        // the Supabase row, and it's a handy offline cache besides.
+        saveProfile(profile);
         try {
           await saveProfileCloud(supabase, user.id, profile);
           setSaveStatus("saved");
           setLastSavedAt(Date.now());
         } catch {
-          saveProfile(profile);
           setSaveStatus("local");
           setLastSavedAt(Date.now());
         }
@@ -167,6 +173,13 @@ export function useProfile() {
 
   const toggleTheme = useCallback(() => {
     setProfile((p) => ({ ...p, theme: p.theme === "dark" ? "light" : "dark" }));
+  }, []);
+
+  const toggleCardView = useCallback(() => {
+    setProfile((p) => ({
+      ...p,
+      cardView: p.cardView === "grouped" ? "detailed" : "grouped",
+    }));
   }, []);
 
   const setPosition = useCallback((key: string, pos: Pos) => {
@@ -219,6 +232,7 @@ export function useProfile() {
     updateData,
     toggleVisibility,
     toggleTheme,
+    toggleCardView,
     setPosition,
     resetPositions,
     restorePositions,

@@ -13,6 +13,7 @@ import { Welcome } from "@/components/Welcome";
 import { Toast, type ToastState } from "@/components/Toast";
 import { useProfile } from "@/lib/useProfile";
 import { track } from "@/lib/analytics";
+import type { HudCardSpec } from "@/lib/hudCards";
 
 function relTime(ts: number | null, now: number): string {
   if (!ts) return "";
@@ -37,6 +38,7 @@ export default function Home() {
     updateData,
     toggleVisibility,
     toggleTheme,
+    toggleCardView,
     setPosition,
     resetPositions,
     restorePositions,
@@ -48,6 +50,7 @@ export default function Home() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [focusCategory, setFocusCategory] = useState<string | null>(null);
+  const [focusField, setFocusField] = useState<HudCardSpec["fields"][number] | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -86,10 +89,18 @@ export default function Home() {
     setShowWelcome(false);
   };
 
-  const editCategory = (title: string) => {
-    setFocusCategory(title);
+  // Grouped cards (multiple fields) open their whole category; detailed
+  // cards (a single field) jump straight to that field's own editor.
+  const editCard = (card: HudCardSpec) => {
+    if (card.fields.length === 1) {
+      setFocusCategory(null);
+      setFocusField(card.fields[0]);
+    } else {
+      setFocusField(null);
+      setFocusCategory(card.title);
+    }
     setPanelOpen(true);
-    track("edit_category", { category: title });
+    track("edit_card", { card: card.key, mode: profile.cardView });
   };
 
   const handleReset = () => {
@@ -151,6 +162,39 @@ export default function Home() {
           font={profile.data.nameFont}
         />
 
+        {hydrated && (
+          <div
+            role="group"
+            aria-label="Card view"
+            className="mb-4 inline-flex rounded-full border border-border bg-bg-elev/60 p-1 text-xs"
+          >
+            {(
+              [
+                ["grouped", "Grouped"],
+                ["detailed", "Detailed"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  if (profile.cardView !== key) {
+                    toggleCardView();
+                    track("toggle_card_view", { view: key });
+                  }
+                }}
+                aria-pressed={profile.cardView === key}
+                className={`rounded-full px-3 py-1.5 font-medium transition ${
+                  profile.cardView === key
+                    ? "bg-accent text-white"
+                    : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {!hydrated && <HudSkeleton />}
 
         {/* desktop / tablet: draggable float */}
@@ -159,7 +203,7 @@ export default function Home() {
             <ProfileHud
               profile={profile}
               setPosition={setPosition}
-              onEditCategory={editCategory}
+              onEditCard={editCard}
             />
             <button
               onClick={handleReset}
@@ -173,7 +217,7 @@ export default function Home() {
         {/* mobile: stacked list */}
         {hydrated && (
           <div className="w-full sm:hidden">
-            <MobileProfile profile={profile} onEditCategory={editCategory} />
+            <MobileProfile profile={profile} onEditCard={editCard} />
           </div>
         )}
       </main>
@@ -185,6 +229,7 @@ export default function Home() {
         update={updateData}
         toggleVisibility={toggleVisibility}
         focusCategory={focusCategory}
+        focusField={focusField}
       />
 
       <AuthModal

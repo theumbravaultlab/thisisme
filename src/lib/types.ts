@@ -4,6 +4,9 @@
 
 export type AgeDisplayMode = "range" | "exact";
 export type ThemePreference = "light" | "dark";
+// "grouped" = one card per Customize category. "detailed" = every stat its
+// own card.
+export type CardView = "grouped" | "detailed";
 
 export interface ProfileData {
   // identity
@@ -82,6 +85,7 @@ export interface Profile {
   data: ProfileData;
   visibility: FieldVisibility;
   theme: ThemePreference;
+  cardView: CardView;
   positions: Partial<Record<string, Pos>>;
 }
 
@@ -166,6 +170,10 @@ export function fontVar(key: string): string {
 
 // Flat render order derived from the categories.
 export const FIELD_ORDER: FieldKey[] = CATEGORIES.flatMap((c) => c.fields);
+
+export function categoryOfField(field: FieldKey): string {
+  return CATEGORIES.find((c) => c.fields.includes(field))?.title ?? "";
+}
 
 // Option lists for dropdowns.
 export const RELATIONSHIP_OPTIONS = [
