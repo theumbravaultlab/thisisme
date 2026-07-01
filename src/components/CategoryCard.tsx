@@ -52,20 +52,24 @@ export function CategoryCard({ title, emoji, fields, profile, onEdit }: Props) {
 function FieldRow({ field, value }: { field: FieldKey; value: string }) {
   if (field === "favoriteColor") {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <span
           className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] ring-1 ring-fg/20"
           style={{ background: value, color: contrastText(value) }}
         />
-        <span className="break-words text-sm font-medium">{value}</span>
+        <span className="min-w-0 whitespace-normal break-words text-sm font-medium">
+          {value}
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-baseline gap-1.5">
+    <div className="flex min-w-0 items-baseline gap-1.5">
       <span className="shrink-0 text-[11px] text-fg-muted">{FIELD_META[field].emoji}</span>
-      <span className="truncate text-sm font-medium">{value}</span>
+      <span className="min-w-0 flex-1 whitespace-normal break-words text-sm font-medium">
+        {value}
+      </span>
     </div>
   );
 }

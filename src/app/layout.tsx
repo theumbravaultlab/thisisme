@@ -23,6 +23,7 @@ const archivo = Archivo_Black({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: "thisisme",
   description: "Customize a profile that shows the real you, your way.",
   openGraph: {
