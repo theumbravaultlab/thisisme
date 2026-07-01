@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProfile } from "@/lib/useProfile";
-import { stylizeImage, AVATAR_PRESETS, type AvatarPreset } from "@/lib/avatar";
+import { stylizeImage, DEFAULT_AVATAR_PRESET } from "@/lib/avatar";
 import { track } from "@/lib/analytics";
 
 export default function AvatarStudio() {
@@ -13,19 +13,13 @@ export default function AvatarStudio() {
   const router = useRouter();
 
   const [source, setSource] = useState<string | null>(null);
-  const [preset, setPreset] = useState<AvatarPreset>(AVATAR_PRESETS[0]);
-  const [strength, setStrength] = useState<number>(AVATAR_PRESETS[0].strength);
+  const [strength, setStrength] = useState<number>(DEFAULT_AVATAR_PRESET.strength);
   const [removeBg, setRemoveBg] = useState(true);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const effectiveSource = source ?? (hydrated ? profile.data.photoDataUrl : null);
-
-  const choosePreset = (p: AvatarPreset) => {
-    setPreset(p);
-    setStrength(p.strength);
-  };
 
   const onFile = (file: File | undefined) => {
     if (!file) return;
@@ -41,14 +35,14 @@ export default function AvatarStudio() {
     if (!effectiveSource) return;
     setBusy(true);
     setError(null);
-    track("avatar_generate", { preset: preset.key, strength });
+    track("avatar_generate", { preset: DEFAULT_AVATAR_PRESET.key, strength });
     try {
       const res = await fetch("/api/avatar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image: effectiveSource,
-          prompt: preset.prompt,
+          prompt: DEFAULT_AVATAR_PRESET.prompt,
           strength,
           color: profile.data.favoriteColor,
           removeBg,
@@ -58,10 +52,10 @@ export default function AvatarStudio() {
       if (data.image) {
         setResult(data.image); // real model result
       } else {
-        // free demo path — stylize locally with the preset's look
+        // free demo path — stylize locally
         const styled = await stylizeImage(effectiveSource, {
           color: profile.data.favoriteColor,
-          style: preset.stylizer,
+          style: DEFAULT_AVATAR_PRESET.stylizer,
         });
         setResult(styled);
       }
@@ -75,12 +69,12 @@ export default function AvatarStudio() {
   const useAsAvatar = () => {
     if (!result) return;
     updateData("photoDataUrl", result);
-    track("avatar_applied", { preset: preset.key });
+    track("avatar_applied", { preset: DEFAULT_AVATAR_PRESET.key });
     router.push("/");
   };
 
   const intensityLabel =
-    strength <= 0.35 ? "Subtle (stays you)" : strength >= 0.65 ? "Bold (restyled)" : "Balanced";
+    strength <= 0.35 ? "Subtle (stays you)" : strength >= 0.65 ? "Bold (cartoon)" : "Balanced";
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
@@ -92,10 +86,9 @@ export default function AvatarStudio() {
       </div>
 
       <p className="mb-6 text-sm text-fg-muted">
-        Turn a photo into an AI portrait. By default we cut out the background,
-        put you on a clean backdrop, then turn you into a slightly-cartoonish
-        version of yourself that still looks like you. Pick a theme, then dial
-        in how much it changes you.
+        Turn a photo into a cartoon avatar. We cut out the background, put you
+        on a clean backdrop, then turn you into a clearly-cartoon version of
+        yourself that still looks like you.
       </p>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -133,25 +126,6 @@ export default function AvatarStudio() {
         {/* controls */}
         <div className="flex flex-col gap-4">
           <div>
-            <p className="mb-2 text-sm font-medium">Theme</p>
-            <div className="grid grid-cols-2 gap-2">
-              {AVATAR_PRESETS.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => choosePreset(p)}
-                  className={`rounded-xl border px-3 py-2 text-sm transition ${
-                    preset.key === p.key
-                      ? "border-accent bg-accent/15 text-fg"
-                      : "border-border text-fg-muted hover:border-accent"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
             <div className="mb-1 flex items-center justify-between text-sm">
               <span className="font-medium">Intensity</span>
               <span className="text-accent">{intensityLabel}</span>
@@ -166,7 +140,7 @@ export default function AvatarStudio() {
               className="h-2 w-full cursor-pointer appearance-none rounded-full bg-border accent-accent"
             />
             <p className="mt-1 text-xs text-fg-muted">
-              Lower keeps your likeness; higher lets the model restyle more.
+              Lower keeps your likeness; higher pushes further into cartoon territory.
             </p>
           </div>
 
@@ -205,9 +179,9 @@ export default function AvatarStudio() {
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           <p className="text-xs text-fg-muted">
-            Background removal + AI stylization need a connected image model.
-            Without one, this applies a free color-filter preview instead of
-            true background removal.
+            Background removal + cartoon stylization need a connected image
+            model. Without one, this applies a free color-filter preview
+            instead.
           </p>
         </div>
       </div>

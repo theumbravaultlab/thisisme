@@ -1,14 +1,16 @@
 "use client";
 
-// Client-side "demo" avatar stylizer. Runs entirely in the browser (canvas) so
-// the feature works with zero cost / no API key. When a real image API is
+// Client-side "demo" stylizer. Runs entirely in the browser (canvas) so the
+// feature works with zero cost / no API key. When a real image API is
 // configured server-side, /api/avatar returns a model image instead and this
-// is skipped. Not "true" AI — a stylized effect that reads the favorite color.
+// is skipped. Not "true" AI — a stylized color-filter preview, not a cartoon
+// render (that needs the real model).
 
-export type AvatarStyle = "duotone" | "neon" | "pop" | "mono" | "glow";
+export type AvatarStyle = "glow";
 
-// Presets pair a starting AI prompt + strength with a local-stylizer fallback.
-// `prompt` is fully editable in the UI; `strength` maps to the intensity slider.
+// The one and only avatar look: background removed, composited onto a clean
+// backdrop, then turned into a clearly-cartoon (but still recognizable)
+// portrait. `strength` is user-adjustable via the intensity slider.
 export interface AvatarPreset {
   key: string;
   label: string;
@@ -17,64 +19,14 @@ export interface AvatarPreset {
   stylizer: AvatarStyle;
 }
 
-export const AVATAR_PRESETS: AvatarPreset[] = [
-  {
-    key: "cartoon",
-    label: "Cartoon (default)",
-    prompt:
-      "3D animated movie character, Pixar and DreamWorks animation style illustration, obviously NOT a photograph, cel-shaded cartoon rendering, flat simplified cartoon skin with no pores or photographic texture, bold clean outlines, glossy cartoon eyes noticeably enlarged, smooth toon shading, vibrant saturated colors, friendly cartoon expression, simple clean background — but with the same face shape, eye color, nose, mouth and hairstyle as the reference photo so it is instantly recognizable as that specific person turned into a cartoon character",
-    strength: 0.75,
-    stylizer: "glow",
-  },
-  {
-    key: "enhanced",
-    label: "Enhanced (same you)",
-    prompt:
-      "the same person, keep their likeness, soft flattering studio lighting, gentle shading, natural skin, subtle retouch, sharp, high-quality portrait",
-    strength: 0.3,
-    stylizer: "glow",
-  },
-  {
-    key: "cinematic",
-    label: "Cinematic",
-    prompt:
-      "cinematic portrait of the same person, dramatic rim lighting, moody soft shadows, film still, high detail",
-    strength: 0.45,
-    stylizer: "duotone",
-  },
-  {
-    key: "3d",
-    label: "3D Character",
-    prompt:
-      "3d stylized character portrait of the same person, pixar-like, soft global illumination, clean render",
-    strength: 0.7,
-    stylizer: "pop",
-  },
-  {
-    key: "cyber",
-    label: "Cyberpunk",
-    prompt:
-      "cyberpunk neon portrait of the same person, glowing accent lights, futuristic, high contrast",
-    strength: 0.7,
-    stylizer: "neon",
-  },
-  {
-    key: "paint",
-    label: "Painterly",
-    prompt:
-      "painterly digital portrait of the same person, soft brush strokes, artistic lighting",
-    strength: 0.6,
-    stylizer: "glow",
-  },
-  {
-    key: "noir",
-    label: "Noir",
-    prompt:
-      "black and white noir portrait of the same person, high-contrast lighting, classic film",
-    strength: 0.5,
-    stylizer: "mono",
-  },
-];
+export const DEFAULT_AVATAR_PRESET: AvatarPreset = {
+  key: "cartoon",
+  label: "Cartoon",
+  prompt:
+    "3D animated movie character, Pixar and DreamWorks animation style illustration, obviously NOT a photograph, cel-shaded cartoon rendering, flat simplified cartoon skin with no pores or photographic texture, bold clean outlines, glossy cartoon eyes noticeably enlarged, smooth toon shading, vibrant saturated colors, friendly cartoon expression, simple clean background — but with the same face shape, eye color, nose, mouth and hairstyle as the reference photo so it is instantly recognizable as that specific person turned into a cartoon character",
+  strength: 0.75,
+  stylizer: "glow",
+};
 
 function parse(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
@@ -100,6 +52,7 @@ export async function stylizeImage(
   src: string,
   opts: { color: string; style: AvatarStyle }
 ): Promise<string> {
+  void opts.style; // only "glow" exists today
   const img = await loadImage(src);
   const size = 512;
   const canvas = document.createElement("canvas");
@@ -122,57 +75,10 @@ export async function stylizeImage(
 
   for (let i = 0; i < p.length; i += 4) {
     const lum = (0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]) / 255;
-
-    let r = p[i], g = p[i + 1], b = p[i + 2];
-
-    switch (opts.style) {
-      case "duotone": {
-        // dark → accent → white ramp
-        const t = lum;
-        const shadowMix = Math.min(t * 2, 1);
-        r = mix(20, ar, shadowMix);
-        g = mix(20, ag, shadowMix);
-        b = mix(28, ab, shadowMix);
-        if (t > 0.5) {
-          r = mix(r, 255, (t - 0.5) * 2 * 0.8);
-          g = mix(g, 255, (t - 0.5) * 2 * 0.8);
-          b = mix(b, 255, (t - 0.5) * 2 * 0.8);
-        }
-        break;
-      }
-      case "neon": {
-        const c = Math.pow(lum, 1.4); // crush shadows
-        r = mix(8, ar, c) + (c > 0.7 ? 60 : 0);
-        g = mix(8, ag, c) + (c > 0.7 ? 60 : 0);
-        b = mix(14, ab, c) + (c > 0.7 ? 60 : 0);
-        break;
-      }
-      case "pop": {
-        r = posterize(r, 4) * 255;
-        g = posterize(g, 4) * 255;
-        b = posterize(b, 4) * 255;
-        // tint mids toward accent
-        r = mix(r, ar, 0.25);
-        g = mix(g, ag, 0.25);
-        b = mix(b, ab, 0.25);
-        break;
-      }
-      case "glow": {
-        const t = posterize(lum, 6);
-        r = mix(15, ar, t);
-        g = mix(15, ag, t);
-        b = mix(22, ab, t);
-        break;
-      }
-      case "mono": {
-        const v = clamp255(Math.pow(lum, 0.9) * 255);
-        r = g = b = v;
-        break;
-      }
-    }
-    p[i] = clamp255(r);
-    p[i + 1] = clamp255(g);
-    p[i + 2] = clamp255(b);
+    const t = posterize(lum, 6);
+    p[i] = clamp255(mix(15, ar, t));
+    p[i + 1] = clamp255(mix(15, ag, t));
+    p[i + 2] = clamp255(mix(22, ab, t));
   }
 
   ctx.putImageData(data, 0, 0);
