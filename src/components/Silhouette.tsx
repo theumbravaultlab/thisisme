@@ -2,9 +2,31 @@
 
 import Image from "next/image";
 
-// Central figure: a large head-and-shoulders mannequin bust, centered and
-// gently floating. The AI avatar (Phase 2) fills the head.
+// Central figure. Once the user has a photo/AI avatar, it fully replaces the
+// placeholder — shown large and centered, whatever its natural crop (shoulders
+// up, full body, etc.) — no wireframe body underneath. Before that, a gentle
+// wireframe mannequin stands in as the placeholder.
 export function Silhouette({ photoUrl }: { photoUrl: string | null }) {
+  if (photoUrl) {
+    return (
+      <div className="relative h-full w-full">
+        <div className="absolute bottom-[8%] left-1/2 h-40 w-96 -translate-x-1/2 rounded-[100%] bg-accent/25 blur-3xl" />
+        <div className="animate-float absolute inset-0 flex items-center justify-center">
+          <div className="relative h-[88%] w-auto aspect-square overflow-hidden rounded-[2rem] shadow-[0_0_50px_-10px_var(--accent)] ring-1 ring-accent/30">
+            <Image
+              src={photoUrl}
+              alt="Your avatar"
+              fill
+              sizes="480px"
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-full w-full">
       {/* soft base glow behind the bust */}
@@ -21,9 +43,6 @@ export function Silhouette({ photoUrl }: { photoUrl: string | null }) {
               <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.42" />
               <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.08" />
             </linearGradient>
-            <clipPath id="headClip">
-              <circle cx="100" cy="62" r="48" />
-            </clipPath>
           </defs>
 
           {/* shoulders + neck */}
@@ -45,15 +64,6 @@ export function Silhouette({ photoUrl }: { photoUrl: string | null }) {
             strokeWidth="1.2"
             strokeOpacity="0.6"
           />
-
-          {/* avatar photo into the head, if present */}
-          {photoUrl && (
-            <foreignObject x="52" y="14" width="96" height="96" clipPath="url(#headClip)">
-              <div className="relative h-full w-full">
-                <Image src={photoUrl} alt="avatar" fill sizes="96px" className="object-cover" unoptimized />
-              </div>
-            </foreignObject>
-          )}
         </svg>
       </div>
     </div>

@@ -145,28 +145,6 @@ export function CardBody({ field, data, update }: Props) {
         />
       );
 
-    case "energy":
-      return (
-        <Slider
-          min={0}
-          max={100}
-          value={data.energy}
-          onChange={(v) => update("energy", v)}
-          format={(v) => `${v}%`}
-        />
-      );
-
-    case "socialBattery":
-      return (
-        <Slider
-          min={0}
-          max={100}
-          value={data.socialBattery}
-          onChange={(v) => update("socialBattery", v)}
-          format={(v) => `${v}%`}
-        />
-      );
-
     case "favoriteAnimal":
       return (
         <Select
@@ -201,24 +179,6 @@ export function CardBody({ field, data, update }: Props) {
           value={data.movieSnack}
           onChange={(v) => update("movieSnack", v)}
           placeholder="e.g. Buttered popcorn"
-        />
-      );
-
-    case "favoriteMeal":
-      return (
-        <TextInput
-          value={data.favoriteMeal}
-          onChange={(v) => update("favoriteMeal", v)}
-          placeholder="e.g. Ramen"
-        />
-      );
-
-    case "currentObsession":
-      return (
-        <TextInput
-          value={data.currentObsession}
-          onChange={(v) => update("currentObsession", v)}
-          placeholder="What can't you stop thinking about?"
         />
       );
 

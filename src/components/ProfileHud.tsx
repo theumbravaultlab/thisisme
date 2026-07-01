@@ -2,33 +2,73 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, PanInfo } from "motion/react";
-import { FIELD_ORDER, FieldKey, Pos, Profile } from "@/lib/types";
-import { HudCard } from "./HudCard";
+import { CATEGORIES, Pos, Profile } from "@/lib/types";
+import { CategoryCard } from "./CategoryCard";
 import { Silhouette } from "./Silhouette";
 import { CosmicBackdrop } from "./CosmicBackdrop";
 
-// "photo" feeds the central avatar and "name" is the title, so neither floats.
-const ORBIT_FIELDS = FIELD_ORDER.filter((f) => f !== "photo" && f !== "name");
+// "photo" and "name" are handled outside the category cards (avatar + title),
+// so the Basics category only shows its remaining fields (age, birthday,
+// height, favorite color) when it floats as a card.
+const HUD_CATEGORIES = CATEGORIES.map((c) => ({
+  ...c,
+  fields: c.fields.filter((f) => f !== "photo" && f !== "name"),
+})).filter((c) => c.fields.length > 0);
 
 // Character center + rings, all in stage %.
 const C: Pos = { x: 50, y: 42 };
-const RING_X = 41; // outer ring where default card slots sit
-const RING_Y = 38;
+const RING_X = 40;
+const RING_Y = 36;
 const ANCHOR_X = 23; // inner ring — where lines meet the character outline
 const ANCHOR_Y = 32;
 
+// Card half-size in stage % — used both for leader-line edges and collision
+// avoidance so cards never land on top of each other.
+const CARD_HW = 13;
+const CARD_HH = 11;
+
 const rad = (deg: number) => (deg * Math.PI) / 180;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+function clampToStage(p: Pos): Pos {
+  return { x: clamp(p.x, CARD_HW - 2, 100 - CARD_HW + 2), y: clamp(p.y, CARD_HH - 2, 100 - CARD_HH + 2) };
+}
 
 // Default slot: an even arc around the character, leaving a gap at the bottom.
 function arcSlot(index: number, count: number): Pos {
   const startDeg = 125;
   const sweep = 290; // wraps left → top → right, skipping straight-down
   const deg = count <= 1 ? 270 : startDeg + (sweep * index) / (count - 1);
-  return {
-    x: clamp(C.x + RING_X * Math.cos(rad(deg)), 8, 92),
-    y: clamp(C.y + RING_Y * Math.sin(rad(deg)), 8, 90),
-  };
+  return clampToStage({
+    x: C.x + RING_X * Math.cos(rad(deg)),
+    y: C.y + RING_Y * Math.sin(rad(deg)),
+  });
+}
+
+// Push `pos` away from any already-placed card it overlaps, using the
+// minimum-translation axis, so no two cards ever cover each other.
+function resolveOverlap(pos: Pos, placed: Pos[]): Pos {
+  let p = { ...pos };
+  for (let iter = 0; iter < 6; iter++) {
+    let moved = false;
+    for (const other of placed) {
+      const dx = p.x - other.x;
+      const dy = p.y - other.y;
+      const overlapX = CARD_HW * 2 - Math.abs(dx);
+      const overlapY = CARD_HH * 2 - Math.abs(dy);
+      if (overlapX > 0 && overlapY > 0) {
+        moved = true;
+        if (overlapX < overlapY) {
+          p.x += overlapX * (dx < 0 ? -1 : 1);
+        } else {
+          p.y += overlapY * (dy < 0 ? -1 : 1);
+        }
+      }
+    }
+    p = clampToStage(p);
+    if (!moved) break;
+  }
+  return p;
 }
 
 // Where a card's connector line meets the character — a point on the inner
@@ -39,9 +79,7 @@ function anchorFor(p: Pos): Pos {
 }
 
 // Best practice: a leader line should stop at the label's bounding-box edge
-// nearest the target, not run into/behind it. Approx card half-size in stage %.
-const CARD_HW = 9.5;
-const CARD_HH = 8;
+// nearest the target, not run into/behind it.
 function cardEdge(p: Pos, a: Pos): Pos {
   const dx = a.x - p.x;
   const dy = a.y - p.y;
@@ -51,52 +89,50 @@ function cardEdge(p: Pos, a: Pos): Pos {
   return { x: p.x + dx * t, y: p.y + dy * t };
 }
 
-// On drop: snap onto the arc ring when the card lands near it, otherwise keep
-// it free (rounded to a light 1% grid).
-function snapDrop(x: number, y: number): Pos {
-  const a = Math.atan2(y - C.y, x - C.x);
-  const rx = C.x + RING_X * Math.cos(a);
-  const ry = C.y + RING_Y * Math.sin(a);
-  const near = Math.hypot(x - rx, y - ry) < 10;
-  return near
-    ? { x: rx, y: ry }
-    : { x: clamp(Math.round(x), 5, 95), y: clamp(Math.round(y), 4, 92) };
-}
-
 interface Props {
   profile: Profile;
-  setPosition: (key: FieldKey, pos: Pos) => void;
-  onEditField: (key: FieldKey) => void;
+  setPosition: (key: string, pos: Pos) => void;
+  onEditCategory: (title: string) => void;
   interactive?: boolean;
 }
 
 export function ProfileHud({
   profile,
   setPosition,
-  onEditField,
+  onEditCategory,
   interactive = true,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [dropVer, setDropVer] = useState<Record<string, number>>({});
   const [showHint, setShowHint] = useState(true);
 
-  const visible = ORBIT_FIELDS.filter((f) => profile.visibility[f]);
-  const posOf = (field: FieldKey, i: number): Pos =>
-    profile.positions[field] ?? arcSlot(i, visible.length);
+  const visible = HUD_CATEGORIES.filter((c) => c.fields.some((f) => profile.visibility[f]));
 
-  const onDragEnd = (field: FieldKey, info: PanInfo) => {
+  // Compute final, collision-free positions for every visible category card
+  // in one pass: manual placements win, auto slots fill the rest, and any
+  // resulting overlap gets nudged apart.
+  const resolved: Pos[] = [];
+  visible.forEach((cat, i) => {
+    const raw = profile.positions[cat.title] ?? arcSlot(i, visible.length);
+    resolved.push(resolveOverlap(raw, resolved));
+  });
+  const posOf = (i: number): Pos => resolved[i];
+
+  const onDragEnd = (title: string, i: number, info: PanInfo) => {
     const stage = stageRef.current?.getBoundingClientRect();
     if (!stage) return;
     const x = ((info.point.x - stage.left) / stage.width) * 100;
     const y = ((info.point.y - stage.top) / stage.height) * 100;
-    setPosition(field, snapDrop(x, y));
-    setDropVer((v) => ({ ...v, [field]: (v[field] ?? 0) + 1 }));
+    const others = resolved.filter((_, j) => j !== i);
+    const final = resolveOverlap(clampToStage({ x, y }), others);
+    setPosition(title, final);
+    setDropVer((v) => ({ ...v, [title]: (v[title] ?? 0) + 1 }));
   };
 
   // Keyboard control: arrows nudge, Enter/Space edits.
-  const onCardKey = (field: FieldKey, i: number, e: KeyboardEvent) => {
+  const onCardKey = (title: string, i: number, e: KeyboardEvent) => {
     if (!interactive) return;
-    const p = posOf(field, i);
+    const p = posOf(i);
     const step = 2;
     const moves: Record<string, [number, number]> = {
       ArrowLeft: [-step, 0],
@@ -107,13 +143,11 @@ export function ProfileHud({
     if (moves[e.key]) {
       e.preventDefault();
       const [dx, dy] = moves[e.key];
-      setPosition(field, {
-        x: clamp(p.x + dx, 5, 95),
-        y: clamp(p.y + dy, 4, 92),
-      });
+      const others = resolved.filter((_, j) => j !== i);
+      setPosition(title, resolveOverlap(clampToStage({ x: p.x + dx, y: p.y + dy }), others));
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      onEditField(field);
+      onEditCategory(title);
     }
   };
 
@@ -150,12 +184,12 @@ export function ProfileHud({
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
-        {visible.map((field, i) => {
-          const p = posOf(field, i);
+        {visible.map((cat, i) => {
+          const p = posOf(i);
           const a = anchorFor(p);
-          const e = cardEdge(p, a); // stop the line at the card's near edge
+          const e = cardEdge(p, a);
           return (
-            <g key={field}>
+            <g key={cat.title}>
               <line
                 x1={a.x}
                 y1={a.y}
@@ -171,26 +205,26 @@ export function ProfileHud({
         })}
       </svg>
 
-      {/* draggable glass stat cards */}
+      {/* draggable category cards */}
       <AnimatePresence>
-        {visible.map((field, i) => {
-          const p = posOf(field, i);
+        {visible.map((cat, i) => {
+          const p = posOf(i);
           return (
             <motion.div
-              key={`${field}:${dropVer[field] ?? 0}`}
+              key={`${cat.title}:${dropVer[cat.title] ?? 0}`}
               drag={interactive}
               dragMomentum={false}
               dragElastic={0}
-              onDragEnd={(_, info) => onDragEnd(field, info)}
+              onDragEnd={(_, info) => onDragEnd(cat.title, i, info)}
               tabIndex={interactive ? 0 : -1}
               role={interactive ? "button" : undefined}
               aria-label={
                 interactive
-                  ? `${field} card. Arrow keys move it, Enter edits.`
+                  ? `${cat.title} card. Arrow keys move it, Enter edits.`
                   : undefined
               }
-              onKeyDown={(e) => onCardKey(field, i, e)}
-              className={`group absolute z-20 w-52 -translate-x-1/2 -translate-y-1/2 touch-none transition-[left,top] duration-500 ease-out ${
+              onKeyDown={(e) => onCardKey(cat.title, i, e)}
+              className={`group absolute z-20 w-56 -translate-x-1/2 -translate-y-1/2 touch-none transition-[left,top] duration-500 ease-out ${
                 interactive ? "cursor-grab active:cursor-grabbing" : ""
               }`}
               style={{ left: `${p.x}%`, top: `${p.y}%` }}
@@ -201,10 +235,12 @@ export function ProfileHud({
               whileHover={interactive ? { zIndex: 40 } : undefined}
               whileDrag={{ scale: 1.05, zIndex: 50 }}
             >
-              <HudCard
-                field={field}
+              <CategoryCard
+                title={cat.title}
+                emoji={cat.emoji}
+                fields={cat.fields}
                 profile={profile}
-                onEdit={interactive ? () => onEditField(field) : undefined}
+                onEdit={interactive ? () => onEditCategory(cat.title) : undefined}
               />
             </motion.div>
           );

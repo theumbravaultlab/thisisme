@@ -169,7 +169,7 @@ export function useProfile() {
     setProfile((p) => ({ ...p, theme: p.theme === "dark" ? "light" : "dark" }));
   }, []);
 
-  const setPosition = useCallback((key: FieldKey, pos: Pos) => {
+  const setPosition = useCallback((key: string, pos: Pos) => {
     setProfile((p) => ({ ...p, positions: { ...p.positions, [key]: pos } }));
   }, []);
 

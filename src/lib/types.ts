@@ -20,8 +20,6 @@ export interface ProfileData {
 
   // personality / vibe
   mindset: string; // short tagline, e.g. "Focused. Adaptive. Relentless."
-  energy: number; // 0–100
-  socialBattery: number; // 0–100
   mbti: string;
   favoriteAnimal: string;
 
@@ -34,11 +32,9 @@ export interface ProfileData {
   moviesAndShows: string[];
   spotifyTopSongs: string[];
   hobbies: string[];
-  currentObsession: string;
   dreamDestination: string;
   favoriteDrink: string;
   movieSnack: string;
-  favoriteMeal: string;
   favoriteSeason: string;
 
   // contact
@@ -56,8 +52,6 @@ export interface FieldVisibility {
   height: boolean;
   favoriteColor: boolean;
   mindset: boolean;
-  energy: boolean;
-  socialBattery: boolean;
   mbti: boolean;
   favoriteAnimal: boolean;
   relationshipStatus: boolean;
@@ -66,11 +60,9 @@ export interface FieldVisibility {
   moviesAndShows: boolean;
   spotifyTopSongs: boolean;
   hobbies: boolean;
-  currentObsession: boolean;
   dreamDestination: boolean;
   favoriteDrink: boolean;
   movieSnack: boolean;
-  favoriteMeal: boolean;
   favoriteSeason: boolean;
   phone: boolean;
   email: boolean;
@@ -85,11 +77,12 @@ export interface Pos {
   y: number;
 }
 
+// Positions are keyed by category title (each category floats as one card).
 export interface Profile {
   data: ProfileData;
   visibility: FieldVisibility;
   theme: ThemePreference;
-  positions: Partial<Record<FieldKey, Pos>>;
+  positions: Partial<Record<string, Pos>>;
 }
 
 export const FIELD_META: Record<FieldKey, { label: string; emoji: string }> = {
@@ -100,8 +93,6 @@ export const FIELD_META: Record<FieldKey, { label: string; emoji: string }> = {
   height: { label: "Height", emoji: "📏" },
   favoriteColor: { label: "Favorite Color", emoji: "🎨" },
   mindset: { label: "Mindset", emoji: "🧠" },
-  energy: { label: "Energy", emoji: "⚡" },
-  socialBattery: { label: "Social Battery", emoji: "🔋" },
   mbti: { label: "Personality Type", emoji: "🧩" },
   favoriteAnimal: { label: "Favorite Animal", emoji: "🦊" },
   relationshipStatus: { label: "Relationship", emoji: "🤝" },
@@ -110,11 +101,9 @@ export const FIELD_META: Record<FieldKey, { label: string; emoji: string }> = {
   moviesAndShows: { label: "Movies & TV", emoji: "🎬" },
   spotifyTopSongs: { label: "Top Songs", emoji: "🎧" },
   hobbies: { label: "Hobbies", emoji: "🎯" },
-  currentObsession: { label: "Current Obsession", emoji: "🔥" },
   dreamDestination: { label: "Dream Destination", emoji: "🌍" },
   favoriteDrink: { label: "Favorite Drink", emoji: "🥤" },
   movieSnack: { label: "Movie Theater Snack", emoji: "🍿" },
-  favoriteMeal: { label: "Favorite Meal", emoji: "🍽️" },
   favoriteSeason: { label: "Favorite Season", emoji: "📅" },
   phone: { label: "Phone Number", emoji: "📞" },
   email: { label: "Email", emoji: "✉️" },
@@ -122,33 +111,40 @@ export const FIELD_META: Record<FieldKey, { label: string; emoji: string }> = {
   address: { label: "Address", emoji: "📍" },
 };
 
-// Stats grouped into categories — used to organize the Customize panel.
-export const CATEGORIES: { title: string; fields: FieldKey[] }[] = [
+// Stats grouped into categories — used to organize the Customize panel AND
+// (as of the consolidated HUD) rendered as one combined card per category.
+export const CATEGORIES: { title: string; emoji: string; fields: FieldKey[] }[] = [
   {
     title: "Basics",
+    emoji: "🪪",
     fields: ["name", "photo", "age", "birthday", "height", "favoriteColor"],
   },
   {
     title: "Personality",
-    fields: ["mindset", "energy", "socialBattery", "mbti", "favoriteAnimal"],
+    emoji: "🧠",
+    fields: ["mindset", "mbti", "favoriteAnimal"],
   },
-  { title: "Life", fields: ["relationshipStatus", "religion", "achievements"] },
+  {
+    title: "Life",
+    emoji: "💬",
+    fields: ["relationshipStatus", "religion", "achievements"],
+  },
   {
     title: "Favorites",
+    emoji: "⭐",
     fields: [
       "moviesAndShows",
       "spotifyTopSongs",
       "hobbies",
-      "currentObsession",
       "dreamDestination",
       "favoriteDrink",
       "movieSnack",
-      "favoriteMeal",
       "favoriteSeason",
     ],
   },
   {
     title: "Contact Info",
+    emoji: "📇",
     fields: ["phone", "email", "instagram", "address"],
   },
 ];

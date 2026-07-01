@@ -11,11 +11,8 @@ interface Props {
   profile: Profile;
   update: <K extends keyof ProfileData>(key: K, value: ProfileData[K]) => void;
   toggleVisibility: (key: FieldKey) => void;
-  focusField: FieldKey | null;
+  focusCategory: string | null;
 }
-
-const categoryOf = (field: FieldKey) =>
-  CATEGORIES.find((c) => c.fields.includes(field))?.title ?? "";
 
 // Categories that have at least one visible field — open these by default.
 function defaultOpen(visibility: Profile["visibility"]): Set<string> {
@@ -30,7 +27,7 @@ export function EditPanel({
   profile,
   update,
   toggleVisibility,
-  focusField,
+  focusCategory,
 }: Props) {
   const [expanded, setExpanded] = useState<FieldKey | null>(null);
   const [openCats, setOpenCats] = useState<Set<string>>(() =>
@@ -38,18 +35,14 @@ export function EditPanel({
   );
   const [showHidden, setShowHidden] = useState<Set<string>>(new Set());
 
-  // When opened via a card's edit button, jump to that field: open its category
-  // (revealing hidden fields if needed) and expand its editor.
+  // When opened via a HUD card, jump straight to that category (revealing its
+  // hidden fields too, so everything in the group is reachable at a glance).
   useEffect(() => {
-    if (!focusField) return;
-    const cat = categoryOf(focusField);
+    if (!focusCategory) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setExpanded(focusField);
-    setOpenCats((s) => new Set(s).add(cat));
-    if (!profile.visibility[focusField]) {
-      setShowHidden((s) => new Set(s).add(cat));
-    }
-  }, [focusField, profile.visibility]);
+    setOpenCats((s) => new Set(s).add(focusCategory));
+    setShowHidden((s) => new Set(s).add(focusCategory));
+  }, [focusCategory]);
 
   const toggleCat = (title: string) =>
     setOpenCats((s) => {

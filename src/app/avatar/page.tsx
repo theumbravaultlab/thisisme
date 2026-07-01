@@ -14,7 +14,6 @@ export default function AvatarStudio() {
 
   const [source, setSource] = useState<string | null>(null);
   const [preset, setPreset] = useState<AvatarPreset>(AVATAR_PRESETS[0]);
-  const [prompt, setPrompt] = useState<string>(AVATAR_PRESETS[0].prompt);
   const [strength, setStrength] = useState<number>(AVATAR_PRESETS[0].strength);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,7 +23,6 @@ export default function AvatarStudio() {
 
   const choosePreset = (p: AvatarPreset) => {
     setPreset(p);
-    setPrompt(p.prompt);
     setStrength(p.strength);
   };
 
@@ -49,7 +47,7 @@ export default function AvatarStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image: effectiveSource,
-          prompt,
+          prompt: preset.prompt,
           strength,
           color: profile.data.favoriteColor,
         }),
@@ -92,8 +90,8 @@ export default function AvatarStudio() {
       </div>
 
       <p className="mb-6 text-sm text-fg-muted">
-        Turn a photo into an AI portrait. Pick a starting look, then tweak the
-        description and intensity to control exactly what the model does.
+        Turn a photo into an AI portrait. Pick a theme, then dial in how much
+        it changes you.
       </p>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -131,7 +129,7 @@ export default function AvatarStudio() {
         {/* controls */}
         <div className="flex flex-col gap-4">
           <div>
-            <p className="mb-2 text-sm font-medium">Starting look</p>
+            <p className="mb-2 text-sm font-medium">Theme</p>
             <div className="grid grid-cols-2 gap-2">
               {AVATAR_PRESETS.map((p) => (
                 <button
@@ -147,19 +145,6 @@ export default function AvatarStudio() {
                 </button>
               ))}
             </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">
-              Describe what you want
-            </label>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              rows={3}
-              className="w-full resize-none rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
-              placeholder="e.g. same person, better lighting and shading, natural, high quality"
-            />
           </div>
 
           <div>

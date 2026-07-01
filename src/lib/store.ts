@@ -5,7 +5,7 @@
 import { Profile } from "./types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const STORAGE_KEY = "thisisme:profile:v6";
+const STORAGE_KEY = "thisisme:profile:v7";
 
 export const DEFAULT_PROFILE: Profile = {
   data: {
@@ -18,8 +18,6 @@ export const DEFAULT_PROFILE: Profile = {
     height: "5'11\"",
     favoriteColor: "#7c5cff",
     mindset: "Focused. Adaptive. Relentless.",
-    energy: 82,
-    socialBattery: 60,
     mbti: "ENFP",
     favoriteAnimal: "🦊 Fox",
     relationshipStatus: "It's complicated",
@@ -28,11 +26,9 @@ export const DEFAULT_PROFILE: Profile = {
     moviesAndShows: ["Interstellar", "The Bear", "Severance"],
     spotifyTopSongs: ["Daft Punk – Instant Crush", "SZA – Snooze"],
     hobbies: ["Photography", "Climbing", "Vinyl collecting"],
-    currentObsession: "Cold brew & lo-fi beats",
     dreamDestination: "Tokyo, Japan",
     favoriteDrink: "Iced oat latte",
     movieSnack: "Buttered popcorn",
-    favoriteMeal: "Ramen",
     favoriteSeason: "🍂 Fall",
     phone: "",
     email: "",
@@ -48,8 +44,6 @@ export const DEFAULT_PROFILE: Profile = {
     height: true,
     favoriteColor: true,
     mindset: true,
-    energy: true,
-    socialBattery: false,
     mbti: false,
     favoriteAnimal: true,
     relationshipStatus: true,
@@ -58,11 +52,9 @@ export const DEFAULT_PROFILE: Profile = {
     moviesAndShows: true,
     spotifyTopSongs: true,
     hobbies: false,
-    currentObsession: false,
     dreamDestination: false,
     favoriteDrink: true,
     movieSnack: false,
-    favoriteMeal: false,
     favoriteSeason: true,
     phone: false,
     email: false,

@@ -39,20 +39,25 @@ export function DateInput({
 }
 
 // Editable list of short strings (achievements, movies, songs).
+const LIST_MAX = 3;
+
 export function ListEditor({
   items,
   onChange,
   placeholder,
+  max = LIST_MAX,
 }: {
   items: string[];
   onChange: (items: string[]) => void;
   placeholder?: string;
+  max?: number;
 }) {
   const [draft, setDraft] = useState("");
+  const atMax = items.length >= max;
 
   const add = () => {
     const v = draft.trim();
-    if (!v) return;
+    if (!v || atMax) return;
     onChange([...items, v]);
     setDraft("");
   };
@@ -76,21 +81,25 @@ export function ListEditor({
           </li>
         ))}
       </ul>
-      <div className="flex gap-2">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder={placeholder}
-          className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
-        />
-        <button
-          onClick={add}
-          className="shrink-0 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
-        >
-          Add
-        </button>
-      </div>
+      {atMax ? (
+        <p className="text-xs text-fg-muted">Up to {max} — remove one to add another.</p>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+            placeholder={placeholder}
+            className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          <button
+            onClick={add}
+            className="shrink-0 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            Add
+          </button>
+        </div>
+      )}
     </div>
   );
 }

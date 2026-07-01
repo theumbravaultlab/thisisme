@@ -13,7 +13,6 @@ import { Welcome } from "@/components/Welcome";
 import { Toast, type ToastState } from "@/components/Toast";
 import { useProfile } from "@/lib/useProfile";
 import { track } from "@/lib/analytics";
-import { FieldKey } from "@/lib/types";
 
 function relTime(ts: number | null, now: number): string {
   if (!ts) return "";
@@ -48,7 +47,7 @@ export default function Home() {
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [focusField, setFocusField] = useState<FieldKey | null>(null);
+  const [focusCategory, setFocusCategory] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -87,10 +86,10 @@ export default function Home() {
     setShowWelcome(false);
   };
 
-  const editField = (f: FieldKey) => {
-    setFocusField(f);
+  const editCategory = (title: string) => {
+    setFocusCategory(title);
     setPanelOpen(true);
-    track("edit_field", { field: f });
+    track("edit_category", { category: title });
   };
 
   const handleReset = () => {
@@ -160,7 +159,7 @@ export default function Home() {
             <ProfileHud
               profile={profile}
               setPosition={setPosition}
-              onEditField={editField}
+              onEditCategory={editCategory}
             />
             <button
               onClick={handleReset}
@@ -174,7 +173,7 @@ export default function Home() {
         {/* mobile: stacked list */}
         {hydrated && (
           <div className="w-full sm:hidden">
-            <MobileProfile profile={profile} onEditField={editField} />
+            <MobileProfile profile={profile} onEditCategory={editCategory} />
           </div>
         )}
       </main>
@@ -185,7 +184,7 @@ export default function Home() {
         profile={profile}
         update={updateData}
         toggleVisibility={toggleVisibility}
-        focusField={focusField}
+        focusCategory={focusCategory}
       />
 
       <AuthModal
