@@ -3,30 +3,42 @@
 // Client-side "demo" stylizer. Runs entirely in the browser (canvas) so the
 // feature works with zero cost / no API key. When a real image API is
 // configured server-side, /api/avatar returns a model image instead and this
-// is skipped. Not "true" AI — a stylized color-filter preview, not a cartoon
-// render (that needs the real model).
+// is skipped. Not "true" AI — a color-filter preview, not a real render (that
+// needs the actual model).
 
-export type AvatarStyle = "glow";
+export type AvatarStyle = "glow" | "beauty";
 
-// The one and only avatar look: background removed, composited onto a clean
-// backdrop, then turned into a clearly-cartoon (but still recognizable)
-// portrait. `strength` is user-adjustable via the intensity slider.
 export interface AvatarPreset {
   key: string;
   label: string;
   prompt: string;
   strength: number;
+  guidanceScale: number;
   stylizer: AvatarStyle;
 }
 
-export const DEFAULT_AVATAR_PRESET: AvatarPreset = {
-  key: "cartoon",
-  label: "Cartoon",
-  prompt:
-    "3D animated movie character, Pixar and DreamWorks animation style illustration, obviously NOT a photograph, cel-shaded cartoon rendering, flat simplified cartoon skin with no pores or photographic texture, bold clean outlines, glossy cartoon eyes noticeably enlarged, smooth toon shading, vibrant saturated colors, friendly cartoon expression, simple clean background — but with the same face shape, eye color, nose, mouth and hairstyle as the reference photo so it is instantly recognizable as that specific person turned into a cartoon character",
-  strength: 0.75,
-  stylizer: "glow",
-};
+export const AVATAR_PRESETS: AvatarPreset[] = [
+  {
+    key: "cartoon",
+    label: "Cartoon",
+    prompt:
+      "3D animated movie character, Pixar and DreamWorks animation style illustration, obviously NOT a photograph, cel-shaded cartoon rendering, flat simplified cartoon skin with no pores or photographic texture, bold clean outlines, glossy cartoon eyes noticeably enlarged, smooth toon shading, vibrant saturated colors, friendly cartoon expression, simple clean background — but with the same face shape, eye color, nose, mouth and hairstyle as the reference photo so it is instantly recognizable as that specific person turned into a cartoon character",
+    strength: 0.75,
+    guidanceScale: 7.5,
+    stylizer: "glow",
+  },
+  {
+    key: "beautified",
+    label: "Beautified",
+    prompt:
+      "professional editorial portrait photograph of the same specific person, their idealized best-possible version — keep their exact facial structure, eye color and shape, nose, mouth and identity clearly recognizable and unmistakably them. Flawless but natural-looking skin, tidy well-groomed hair and eyebrows, bright healthy eyes, confident relaxed expression and posture, upgraded stylish modern outfit, professional studio portrait lighting with soft rim light, sharp high-end camera quality, color-graded like a magazine cover, subtle tasteful digital-art polish and glow — still clearly a real photo of a real person, not a cartoon, not a painting, not an illustration",
+    strength: 0.32,
+    guidanceScale: 4.5,
+    stylizer: "beauty",
+  },
+];
+
+export const DEFAULT_AVATAR_PRESET = AVATAR_PRESETS[0];
 
 function parse(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
@@ -52,7 +64,6 @@ export async function stylizeImage(
   src: string,
   opts: { color: string; style: AvatarStyle }
 ): Promise<string> {
-  void opts.style; // only "glow" exists today
   const img = await loadImage(src);
   const size = 512;
   const canvas = document.createElement("canvas");
@@ -75,10 +86,21 @@ export async function stylizeImage(
 
   for (let i = 0; i < p.length; i += 4) {
     const lum = (0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]) / 255;
-    const t = posterize(lum, 6);
-    p[i] = clamp255(mix(15, ar, t));
-    p[i + 1] = clamp255(mix(15, ag, t));
-    p[i + 2] = clamp255(mix(22, ab, t));
+
+    if (opts.style === "beauty") {
+      // gentle brighten + soft contrast lift, no posterizing — a subtle
+      // "touched up photo" feel rather than a cartoon filter.
+      const lifted = clamp255(Math.pow(lum, 0.9) * 255 * 1.06);
+      const t = lifted / 255;
+      p[i] = clamp255(mix(p[i], mix(p[i], ar, 0.08), 1) * (1 + (t - lum) * 0.5));
+      p[i + 1] = clamp255(mix(p[i + 1], mix(p[i + 1], ag, 0.08), 1) * (1 + (t - lum) * 0.5));
+      p[i + 2] = clamp255(mix(p[i + 2], mix(p[i + 2], ab, 0.08), 1) * (1 + (t - lum) * 0.5));
+    } else {
+      const t = posterize(lum, 6);
+      p[i] = clamp255(mix(15, ar, t));
+      p[i + 1] = clamp255(mix(15, ag, t));
+      p[i + 2] = clamp255(mix(22, ab, t));
+    }
   }
 
   ctx.putImageData(data, 0, 0);
@@ -86,7 +108,7 @@ export async function stylizeImage(
   // soft accent vignette for depth
   const grad = ctx.createRadialGradient(size / 2, size / 2, size * 0.3, size / 2, size / 2, size * 0.75);
   grad.addColorStop(0, "rgba(0,0,0,0)");
-  grad.addColorStop(1, `rgba(${ar},${ag},${ab},0.28)`);
+  grad.addColorStop(1, `rgba(${ar},${ag},${ab},${opts.style === "beauty" ? 0.12 : 0.28})`);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, size, size);
 

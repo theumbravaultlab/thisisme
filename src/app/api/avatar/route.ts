@@ -84,7 +84,8 @@ async function stylize(
   key: string,
   imageDataUrl: string,
   prompt: string,
-  strength: number
+  strength: number,
+  guidanceScale: number
 ): Promise<string> {
   const res = await fetchWithTimeout(
     "https://fal.run/fal-ai/flux/dev/image-to-image",
@@ -95,9 +96,10 @@ async function stylize(
         image_url: imageDataUrl,
         prompt,
         strength,
-        // Higher than the model default (3.5) so the cartoon-stylization
-        // wording actually takes hold instead of staying near-photographic.
-        guidance_scale: 7.5,
+        // Model default is 3.5. Higher values push harder toward the prompt
+        // (needed for the cartoon look); lower values stay closer to a real
+        // photo (needed for the beautify look).
+        guidance_scale: guidanceScale,
         num_inference_steps: 32,
         output_format: "jpeg",
       }),
@@ -113,10 +115,11 @@ async function stylize(
 }
 
 export async function POST(req: NextRequest) {
-  const { image, prompt, strength, color, removeBg } = (await req.json()) as {
+  const { image, prompt, strength, guidanceScale, color, removeBg } = (await req.json()) as {
     image?: string;
     prompt?: string;
     strength?: number;
+    guidanceScale?: number;
     color?: string;
     removeBg?: boolean;
   };
@@ -136,6 +139,7 @@ export async function POST(req: NextRequest) {
       prompt?.trim() ||
       "portrait of the same person, keep their likeness, high quality, clean simple background";
     const s = Math.min(0.95, Math.max(0.15, strength ?? 0.5));
+    const g = Math.min(15, Math.max(1, guidanceScale ?? 4.5));
     const accentColor = color || "#7c5cff";
 
     // Isolate the subject and put them on a clean backdrop before stylizing,
@@ -152,7 +156,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const finalImage = await stylize(key, sourceForStylize, finalPrompt, s);
+    const finalImage = await stylize(key, sourceForStylize, finalPrompt, s, g);
     return NextResponse.json({ image: finalImage });
   } catch (e) {
     // Fail soft to the free demo path rather than erroring the user.
