@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---- Theme tokens: liquid glass -----------------------------------------
+   Light = airy frosted white. Dark = refined deep glass. --accent is injected
+   inline from the user's favorite color (readability-clamped). */
+
+:root {
+  --bg: #eef1f8;
+  --bg-elev: #ffffff;
+  --fg: #1b2230;
+  --fg-muted: #6a7382;
+  --border: rgba(20, 28, 46, 0.1);
+  --accent: #7c5cff;
+
+  /* glass surface */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-highlight: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 10px 34px -12px rgba(30, 41, 70, 0.22);
+}
+
+.dark {
+  --bg: #0b0d13;
+  --bg-elev: #14171f;
+  --fg: #eef1f8;
+  --fg-muted: #9aa3b4;
+  --border: rgba(255, 255, 255, 0.1);
+
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-highlight: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 12px 40px -14px rgba(0, 0, 0, 0.55);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Soft aura — gentle, not neon. Two calm accent washes. */
+body {
+  background-image: radial-gradient(
+      620px circle at 20% 0%,
+      color-mix(in srgb, var(--accent) 14%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      680px circle at 85% 100%,
+      color-mix(in srgb, var(--accent) 10%, transparent),
+      transparent 60%
+    );
+  background-attachment: fixed;
+}
+
+/* ---- Liquid-glass surface ----------------------------------------------- */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+}
+
+/* ---- Gentle motion ------------------------------------------------------ */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float { animation: float 7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float { animation: none; }
+}
+
+/* ---- Accessibility ------------------------------------------------------- */
+/* Clear keyboard focus ring everywhere; hidden for mouse users. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
