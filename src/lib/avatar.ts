@@ -19,6 +19,14 @@ export interface AvatarPreset {
 
 export const AVATAR_PRESETS: AvatarPreset[] = [
   {
+    key: "cartoon",
+    label: "Cartoon (default)",
+    prompt:
+      "semi-realistic cartoon portrait of the same person, clearly recognizable, keep their exact facial features, hairstyle and likeness, Pixar/Disney-inspired stylization, smooth shading, soft flattering studio lighting, clean simple background, friendly expression, high quality",
+    strength: 0.48,
+    stylizer: "glow",
+  },
+  {
     key: "enhanced",
     label: "Enhanced (same you)",
     prompt:

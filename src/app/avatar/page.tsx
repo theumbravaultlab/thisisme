@@ -15,6 +15,7 @@ export default function AvatarStudio() {
   const [source, setSource] = useState<string | null>(null);
   const [preset, setPreset] = useState<AvatarPreset>(AVATAR_PRESETS[0]);
   const [strength, setStrength] = useState<number>(AVATAR_PRESETS[0].strength);
+  const [removeBg, setRemoveBg] = useState(true);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export default function AvatarStudio() {
           prompt: preset.prompt,
           strength,
           color: profile.data.favoriteColor,
+          removeBg,
         }),
       });
       const data = await res.json();
@@ -90,8 +92,10 @@ export default function AvatarStudio() {
       </div>
 
       <p className="mb-6 text-sm text-fg-muted">
-        Turn a photo into an AI portrait. Pick a theme, then dial in how much
-        it changes you.
+        Turn a photo into an AI portrait. By default we cut out the background,
+        put you on a clean backdrop, then turn you into a slightly-cartoonish
+        version of yourself that still looks like you. Pick a theme, then dial
+        in how much it changes you.
       </p>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -166,6 +170,21 @@ export default function AvatarStudio() {
             </p>
           </div>
 
+          <label className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5 text-sm">
+            <span>
+              Remove background
+              <span className="ml-1.5 text-xs text-fg-muted">
+                (isolates you on a clean backdrop first)
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={removeBg}
+              onChange={(e) => setRemoveBg(e.target.checked)}
+              className="h-4 w-4 accent-accent"
+            />
+          </label>
+
           <button
             onClick={generate}
             disabled={!effectiveSource || busy}
@@ -184,6 +203,12 @@ export default function AvatarStudio() {
           )}
 
           {error && <p className="text-sm text-red-500">{error}</p>}
+
+          <p className="text-xs text-fg-muted">
+            Background removal + AI stylization need a connected image model.
+            Without one, this applies a free color-filter preview instead of
+            true background removal.
+          </p>
         </div>
       </div>
     </main>

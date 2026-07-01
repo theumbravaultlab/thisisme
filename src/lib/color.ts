@@ -28,6 +28,12 @@ export function shades(hex: string): string[] {
   return [0.45, 0.22, 0, -0.2, -0.42, -0.62].map((a) => mix(rgb, a));
 }
 
+// A very pale tint of the color — used as a clean studio-style backdrop
+// behind a cutout portrait (see the avatar background-removal pipeline).
+export function paleTint(hex: string): string {
+  return mix(parse(hex), 0.86);
+}
+
 function rgbToHsl([r, g, b]: [number, number, number]): [number, number, number] {
   r /= 255; g /= 255; b /= 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
