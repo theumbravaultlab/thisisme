@@ -82,8 +82,16 @@ body {
 }
 .animate-float { animation: float 7s ease-in-out infinite; }
 
+/* A brief, subtle "felt" confirmation when a save completes. */
+@keyframes save-pulse {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.006); }
+  100% { transform: scale(1); }
+}
+.animate-save-pulse { animation: save-pulse 420ms ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-float { animation: none; }
+  .animate-float, .animate-save-pulse { animation: none; }
 }
 
 /* ---- Accessibility ------------------------------------------------------- */

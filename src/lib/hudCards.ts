@@ -37,3 +37,12 @@ export function getHudCards(view: CardView, visibility: FieldVisibility): HudCar
     fields: c.fields.filter((f) => !EXCLUDED.includes(f)),
   })).filter((c) => c.fields.length > 0 && c.fields.some((f) => visibility[f]));
 }
+
+// How many whole Customize categories currently have nothing toggled on —
+// used to nudge users that there's more to explore (e.g. Contact Info).
+export function countHiddenSections(visibility: FieldVisibility): number {
+  return CATEGORIES.filter((c) => {
+    const fields = c.fields.filter((f) => !EXCLUDED.includes(f));
+    return fields.length > 0 && !fields.some((f) => visibility[f]);
+  }).length;
+}

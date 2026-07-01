@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { CardView } from "@/lib/types";
 
 interface Props {
   editing: boolean;
@@ -11,6 +12,10 @@ interface Props {
   userEmail: string | null;
   onSignIn: () => void;
   onSignOut: () => void;
+  cardView: CardView;
+  onToggleCardView: () => void;
+  highlightAvatarLink?: boolean;
+  onAvatarLinkClick?: () => void;
 }
 
 const btn =
@@ -25,13 +30,44 @@ export function Header({
   userEmail,
   onSignIn,
   onSignOut,
+  cardView,
+  onToggleCardView,
+  highlightAvatarLink,
+  onAvatarLinkClick,
 }: Props) {
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-bg/70 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3">
-        <Link href="/" className="text-lg font-extrabold tracking-tight">
-          this<span className="text-accent">is</span>me
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="text-lg font-extrabold tracking-tight">
+            this<span className="text-accent">is</span>me
+          </Link>
+
+          {/* Grouped / Detailed view toggle — lives in the top ribbon */}
+          <div
+            role="group"
+            aria-label="Card view"
+            className="hidden items-center rounded-full border border-border bg-bg-elev/60 p-0.5 text-xs sm:inline-flex"
+          >
+            {(
+              [
+                ["grouped", "Grouped"],
+                ["detailed", "Detailed"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => cardView !== key && onToggleCardView()}
+                aria-pressed={cardView === key}
+                className={`rounded-full px-2.5 py-1 font-medium transition ${
+                  cardView === key ? "bg-accent text-white" : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex items-center gap-2">
           <button
@@ -43,8 +79,20 @@ export function Header({
             {theme === "dark" ? "🌙" : "☀️"}
           </button>
 
-          <Link href="/avatar" className={`hidden sm:inline-flex ${btn}`}>
+          <Link
+            href="/avatar"
+            onClick={onAvatarLinkClick}
+            className={`relative hidden sm:inline-flex ${btn} ${
+              highlightAvatarLink ? "border-accent text-accent" : ""
+            }`}
+          >
             ✨ AI Avatar
+            {highlightAvatarLink && (
+              <span className="absolute -right-1 -top-1 flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-accent" />
+              </span>
+            )}
           </Link>
 
           {cloudEnabled &&
@@ -70,6 +118,33 @@ export function Header({
           >
             {editing ? "✓ Done" : "⚙️ Customize"}
           </button>
+        </div>
+      </div>
+
+      {/* mobile: card view toggle on its own row */}
+      <div className="flex justify-center border-t border-border/60 py-2 sm:hidden">
+        <div
+          role="group"
+          aria-label="Card view"
+          className="inline-flex items-center rounded-full border border-border bg-bg-elev/60 p-0.5 text-xs"
+        >
+          {(
+            [
+              ["grouped", "Grouped"],
+              ["detailed", "Detailed"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => cardView !== key && onToggleCardView()}
+              aria-pressed={cardView === key}
+              className={`rounded-full px-3 py-1 font-medium transition ${
+                cardView === key ? "bg-accent text-white" : "text-fg-muted hover:text-fg"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
     </header>

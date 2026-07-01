@@ -186,6 +186,16 @@ export function useProfile() {
     setProfile((p) => ({ ...p, positions: { ...p.positions, [key]: pos } }));
   }, []);
 
+  // Drop a single card's manual placement so it snaps back to its default
+  // auto-arranged slot (double-click on the card).
+  const clearPosition = useCallback((key: string) => {
+    setProfile((p) => {
+      const next = { ...p.positions };
+      delete next[key];
+      return { ...p, positions: next };
+    });
+  }, []);
+
   const resetPositions = useCallback(() => {
     setProfile((p) => ({ ...p, positions: {} }));
   }, []);
@@ -234,6 +244,7 @@ export function useProfile() {
     toggleTheme,
     toggleCardView,
     setPosition,
+    clearPosition,
     resetPositions,
     restorePositions,
     signInEmail,

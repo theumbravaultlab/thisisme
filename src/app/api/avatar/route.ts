@@ -8,6 +8,19 @@ import { NextRequest, NextResponse } from "next/server";
 // To enable real generation, set FAL_KEY in .env.local (fal.ai) and flesh out
 // the call below for your chosen model.
 
+// Cap how long we'll wait on the model + the follow-up image fetch, so a slow
+// or hung upstream call fails over to the local stylizer promptly instead of
+// leaving the request open indefinitely.
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const { image, prompt, strength, color } = (await req.json()) as {
     image?: string;
@@ -35,20 +48,24 @@ export async function POST(req: NextRequest) {
 
     // fal.ai FLUX.1 [dev] image-to-image (synchronous). image_url accepts a
     // base64 data URI. Fewer steps = faster + cheaper.
-    const res = await fetch("https://fal.run/fal-ai/flux/dev/image-to-image", {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${key}`,
-        "Content-Type": "application/json",
+    const res = await fetchWithTimeout(
+      "https://fal.run/fal-ai/flux/dev/image-to-image",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Key ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image_url: image,
+          prompt: finalPrompt,
+          strength: s,
+          num_inference_steps: 28,
+          output_format: "jpeg",
+        }),
       },
-      body: JSON.stringify({
-        image_url: image,
-        prompt: finalPrompt,
-        strength: s,
-        num_inference_steps: 28,
-        output_format: "jpeg",
-      }),
-    });
+      25_000
+    );
 
     if (!res.ok) throw new Error(`Model error ${res.status}`);
     const json = await res.json();
@@ -57,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     // Inline the image as a data URL so the avatar persists even if fal's
     // hosted URL later expires.
-    const imgRes = await fetch(url);
+    const imgRes = await fetchWithTimeout(url, {}, 15_000);
     const buf = Buffer.from(await imgRes.arrayBuffer());
     const contentType = imgRes.headers.get("content-type") || "image/jpeg";
     const dataUrl = `data:${contentType};base64,${buf.toString("base64")}`;

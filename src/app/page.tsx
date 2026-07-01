@@ -13,7 +13,7 @@ import { Welcome } from "@/components/Welcome";
 import { Toast, type ToastState } from "@/components/Toast";
 import { useProfile } from "@/lib/useProfile";
 import { track } from "@/lib/analytics";
-import type { HudCardSpec } from "@/lib/hudCards";
+import { countHiddenSections, type HudCardSpec } from "@/lib/hudCards";
 
 function relTime(ts: number | null, now: number): string {
   if (!ts) return "";
@@ -40,6 +40,7 @@ export default function Home() {
     toggleTheme,
     toggleCardView,
     setPosition,
+    clearPosition,
     resetPositions,
     restorePositions,
     signInEmail,
@@ -55,6 +56,9 @@ export default function Home() {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [online, setOnline] = useState(true);
+  const [avatarHighlighted, setAvatarHighlighted] = useState(false);
+  const [switchingView, setSwitchingView] = useState(false);
+  const [pulsing, setPulsing] = useState(false);
 
   // keep relative "saved" time fresh
   useEffect(() => {
@@ -89,6 +93,40 @@ export default function Home() {
     setShowWelcome(false);
   };
 
+  // One-time nudge toward the AI Avatar feature for new users who haven't
+  // discovered it yet.
+  useEffect(() => {
+    if (!hydrated) return;
+    const seen = localStorage.getItem("thisisme:avatarSeen");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!seen && !profile.data.photoDataUrl) setAvatarHighlighted(true);
+  }, [hydrated, profile.data.photoDataUrl]);
+
+  const dismissAvatarHighlight = () => {
+    localStorage.setItem("thisisme:avatarSeen", "1");
+    setAvatarHighlighted(false);
+  };
+
+  // Brief skeleton flash + save-pulse whenever the card view mode changes, so
+  // the reflow reads as an intentional transition rather than a jarring pop.
+  const handleToggleCardView = () => {
+    setSwitchingView(true);
+    toggleCardView();
+    track("toggle_card_view", { view: profile.cardView === "grouped" ? "detailed" : "grouped" });
+    setTimeout(() => setSwitchingView(false), 220);
+  };
+
+  // Pulse the stage briefly whenever a save completes — a class toggle, not a
+  // remount, so it never disturbs ProfileHud's measured card sizes or the
+  // dismissed-hint state.
+  useEffect(() => {
+    if (saveStatus !== "saved" && saveStatus !== "local") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPulsing(true);
+    const t = setTimeout(() => setPulsing(false), 450);
+    return () => clearTimeout(t);
+  }, [saveStatus]);
+
   // Grouped cards (multiple fields) open their whole category; detailed
   // cards (a single field) jump straight to that field's own editor.
   const editCard = (card: HudCardSpec) => {
@@ -118,6 +156,7 @@ export default function Home() {
   };
 
   const savedLabel = relTime(lastSavedAt, now);
+  const hiddenSectionCount = countHiddenSections(profile.visibility);
 
   return (
     <>
@@ -130,6 +169,10 @@ export default function Home() {
         userEmail={user?.email ?? null}
         onSignIn={() => setAuthOpen(true)}
         onSignOut={signOut}
+        cardView={profile.cardView}
+        onToggleCardView={handleToggleCardView}
+        highlightAvatarLink={avatarHighlighted}
+        onAvatarLinkClick={dismissAvatarHighlight}
       />
 
       {!online && (
@@ -162,47 +205,15 @@ export default function Home() {
           font={profile.data.nameFont}
         />
 
-        {hydrated && (
-          <div
-            role="group"
-            aria-label="Card view"
-            className="mb-4 inline-flex rounded-full border border-border bg-bg-elev/60 p-1 text-xs"
-          >
-            {(
-              [
-                ["grouped", "Grouped"],
-                ["detailed", "Detailed"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  if (profile.cardView !== key) {
-                    toggleCardView();
-                    track("toggle_card_view", { view: key });
-                  }
-                }}
-                aria-pressed={profile.cardView === key}
-                className={`rounded-full px-3 py-1.5 font-medium transition ${
-                  profile.cardView === key
-                    ? "bg-accent text-white"
-                    : "text-fg-muted hover:text-fg"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {!hydrated && <HudSkeleton />}
+        {(!hydrated || switchingView) && <HudSkeleton />}
 
         {/* desktop / tablet: draggable float */}
-        {hydrated && (
-          <div className="hidden w-full sm:block">
+        {hydrated && !switchingView && (
+          <div className={`hidden w-full sm:block ${pulsing ? "animate-save-pulse" : ""}`}>
             <ProfileHud
               profile={profile}
               setPosition={setPosition}
+              clearPosition={clearPosition}
               onEditCard={editCard}
             />
             <button
@@ -211,13 +222,29 @@ export default function Home() {
             >
               Reset layout
             </button>
+            {hiddenSectionCount > 0 && (
+              <button
+                onClick={() => setPanelOpen(true)}
+                className="mx-auto mt-1 block text-xs text-fg-muted transition hover:text-accent"
+              >
+                + {hiddenSectionCount} more section{hiddenSectionCount > 1 ? "s" : ""} available — Customize
+              </button>
+            )}
           </div>
         )}
 
         {/* mobile: stacked list */}
-        {hydrated && (
-          <div className="w-full sm:hidden">
+        {hydrated && !switchingView && (
+          <div className={`w-full sm:hidden ${pulsing ? "animate-save-pulse" : ""}`}>
             <MobileProfile profile={profile} onEditCard={editCard} />
+            {hiddenSectionCount > 0 && (
+              <button
+                onClick={() => setPanelOpen(true)}
+                className="mx-auto mt-3 block text-xs text-fg-muted transition hover:text-accent"
+              >
+                + {hiddenSectionCount} more section{hiddenSectionCount > 1 ? "s" : ""} available — Customize
+              </button>
+            )}
           </div>
         )}
       </main>

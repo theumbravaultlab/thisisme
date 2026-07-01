@@ -137,6 +137,7 @@ function cardEdge(p: Pos, a: Pos, hw: number, hh: number): Pos {
 interface Props {
   profile: Profile;
   setPosition: (key: string, pos: Pos) => void;
+  clearPosition?: (key: string) => void;
   onEditCard: (card: HudCardSpec) => void;
   interactive?: boolean;
 }
@@ -144,6 +145,7 @@ interface Props {
 export function ProfileHud({
   profile,
   setPosition,
+  clearPosition,
   onEditCard,
   interactive = true,
 }: Props) {
@@ -222,7 +224,7 @@ export function ProfileHud({
             onClick={() => setShowHint(false)}
             className="glass absolute bottom-5 left-1/2 z-30 -translate-x-1/2 rounded-full px-3.5 py-1.5 text-xs text-fg-muted transition hover:text-fg"
           >
-            Drag to rearrange · tap a card to edit
+            Drag to rearrange · tap to edit · double-click to reset a card
           </motion.button>
         )}
       </AnimatePresence>
@@ -271,11 +273,14 @@ export function ProfileHud({
               dragMomentum={false}
               dragElastic={0}
               onDragEnd={(_, info) => onDragEnd(card.key, i, info)}
+              onDoubleClick={
+                interactive && clearPosition ? () => clearPosition(card.key) : undefined
+              }
               tabIndex={interactive ? 0 : -1}
               role={interactive ? "button" : undefined}
               aria-label={
                 interactive
-                  ? `${card.title} card. Arrow keys move it, Enter edits.`
+                  ? `${card.title} card. Arrow keys move it, Enter edits, double-click to reset its position.`
                   : undefined
               }
               onKeyDown={(e) => onCardKey(card, i, e)}
@@ -295,6 +300,7 @@ export function ProfileHud({
                 emoji={card.emoji}
                 fields={card.fields}
                 profile={profile}
+                draggable={interactive}
                 onEdit={interactive ? () => onEditCard(card) : undefined}
               />
             </motion.div>

@@ -1,6 +1,8 @@
 "use client";
 
-import { motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { AnimatePresence, motion } from "motion/react";
 import { Profile } from "@/lib/types";
 import { getHudCards, HudCardSpec } from "@/lib/hudCards";
 import { Silhouette } from "./Silhouette";
@@ -8,7 +10,9 @@ import { CosmicBackdrop } from "./CosmicBackdrop";
 import { CategoryCard } from "./CategoryCard";
 
 // Phone layout: the figure as a hero, then a tappable list of cards (grouped
-// by category, or one per stat, depending on the view mode).
+// by category, or one per stat, depending on the view mode). A small sticky
+// avatar chip appears once the hero scrolls out of view, so identity stays
+// anchored while browsing a long card list.
 export function MobileProfile({
   profile,
   onEditCard,
@@ -19,11 +23,52 @@ export function MobileProfile({
   interactive?: boolean;
 }) {
   const visible = getHudCards(profile.cardView, profile.visibility);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [heroVisible, setHeroVisible] = useState(true);
+
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setHeroVisible(entry.isIntersecting), {
+      threshold: 0.05,
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   return (
     <div className="w-full">
+      {/* sticky mini avatar — shows once the hero scrolls out of view */}
+      <AnimatePresence>
+        {!heroVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="glass sticky top-16 z-20 mb-3 flex items-center gap-2 rounded-full px-3 py-2"
+          >
+            <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full bg-accent/20">
+              {profile.data.photoDataUrl && (
+                <Image
+                  src={profile.data.photoDataUrl}
+                  alt=""
+                  fill
+                  sizes="28px"
+                  className="object-cover"
+                  unoptimized
+                />
+              )}
+            </div>
+            <span className="truncate text-sm font-medium">{profile.data.name}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* hero figure */}
-      <div className="relative h-72 w-full overflow-hidden rounded-3xl border border-border bg-bg-elev/20">
+      <div
+        ref={heroRef}
+        className="relative h-72 w-full overflow-hidden rounded-3xl border border-border bg-bg-elev/20"
+      >
         <CosmicBackdrop />
         <div className="absolute inset-0">
           <Silhouette photoUrl={profile.data.photoDataUrl} />

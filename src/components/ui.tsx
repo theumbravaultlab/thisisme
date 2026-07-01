@@ -68,9 +68,9 @@ export function ListEditor({
         {items.map((item, i) => (
           <li
             key={i}
-            className="flex items-center justify-between gap-2 rounded-lg bg-bg px-3 py-1.5 text-sm"
+            className="flex items-start justify-between gap-2 rounded-lg bg-bg px-3 py-1.5 text-sm"
           >
-            <span className="truncate">{item}</span>
+            <span className="min-w-0 flex-1 whitespace-normal break-words">{item}</span>
             <button
               onClick={() => onChange(items.filter((_, j) => j !== i))}
               className="shrink-0 text-fg-muted transition hover:text-accent"

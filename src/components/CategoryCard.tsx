@@ -10,12 +10,13 @@ interface Props {
   fields: FieldKey[];
   profile: Profile;
   onEdit?: () => void;
+  draggable?: boolean;
 }
 
 // One floating glass card per Customize category, showing every visible
 // field in that group as a compact row. Replaces the old one-card-per-stat
 // layout so the board stays tidy no matter how many stats are toggled on.
-export function CategoryCard({ title, emoji, fields, profile, onEdit }: Props) {
+export function CategoryCard({ title, emoji, fields, profile, onEdit, draggable }: Props) {
   const rows = fields.filter((f) => profile.visibility[f] && fieldToText(f, profile.data));
 
   return (
@@ -32,6 +33,15 @@ export function CategoryCard({ title, emoji, fields, profile, onEdit }: Props) {
       )}
 
       <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-fg">
+        {draggable && (
+          <span
+            aria-hidden
+            title="Drag to move"
+            className="-ml-0.5 select-none text-fg-muted/50"
+          >
+            ⠿
+          </span>
+        )}
         <span>{emoji}</span>
         {title}
       </p>

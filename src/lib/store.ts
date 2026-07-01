@@ -2,8 +2,25 @@
 // zero backend. Phase: swap these two functions for Supabase calls and the
 // rest of the app stays unchanged.
 
-import { Profile } from "./types";
+import { Profile, CATEGORIES, FIELD_ORDER } from "./types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+// Position keys are either a category title (grouped view) or a field key
+// (detailed view). Drop anything else — e.g. leftovers from a since-renamed
+// or removed stat — so the positions map doesn't grow stale forever.
+const VALID_POSITION_KEYS = new Set<string>([
+  ...CATEGORIES.map((c) => c.title),
+  ...FIELD_ORDER,
+]);
+
+function prunePositions(positions: Profile["positions"] | undefined): Profile["positions"] {
+  if (!positions) return {};
+  const pruned: Profile["positions"] = {};
+  for (const [key, pos] of Object.entries(positions)) {
+    if (VALID_POSITION_KEYS.has(key)) pruned[key] = pos;
+  }
+  return pruned;
+}
 
 const STORAGE_KEY = "thisisme:profile:v7";
 
@@ -77,7 +94,7 @@ export function loadProfile(): Profile {
       visibility: { ...DEFAULT_PROFILE.visibility, ...parsed.visibility },
       theme: parsed.theme ?? DEFAULT_PROFILE.theme,
       cardView: parsed.cardView ?? DEFAULT_PROFILE.cardView,
-      positions: parsed.positions ?? {},
+      positions: prunePositions(parsed.positions),
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -107,7 +124,7 @@ function mergeRow(row: ProfileRow): Profile {
     visibility: { ...DEFAULT_PROFILE.visibility, ...row.visibility },
     theme: row.theme ?? DEFAULT_PROFILE.theme,
     cardView: row.cardView ?? DEFAULT_PROFILE.cardView,
-    positions: row.positions ?? {},
+    positions: prunePositions(row.positions),
   };
 }
 
