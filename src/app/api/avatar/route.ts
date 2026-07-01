@@ -95,7 +95,10 @@ async function stylize(
         image_url: imageDataUrl,
         prompt,
         strength,
-        num_inference_steps: 28,
+        // Higher than the model default (3.5) so the cartoon-stylization
+        // wording actually takes hold instead of staying near-photographic.
+        guidance_scale: 7.5,
+        num_inference_steps: 32,
         output_format: "jpeg",
       }),
     },

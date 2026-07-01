@@ -22,8 +22,8 @@ export const AVATAR_PRESETS: AvatarPreset[] = [
     key: "cartoon",
     label: "Cartoon (default)",
     prompt:
-      "semi-realistic cartoon portrait of the same person, clearly recognizable, keep their exact facial features, hairstyle and likeness, Pixar/Disney-inspired stylization, smooth shading, soft flattering studio lighting, clean simple background, friendly expression, high quality",
-    strength: 0.48,
+      "3D animated movie character, Pixar and DreamWorks animation style illustration, obviously NOT a photograph, cel-shaded cartoon rendering, flat simplified cartoon skin with no pores or photographic texture, bold clean outlines, glossy cartoon eyes noticeably enlarged, smooth toon shading, vibrant saturated colors, friendly cartoon expression, simple clean background — but with the same face shape, eye color, nose, mouth and hairstyle as the reference photo so it is instantly recognizable as that specific person turned into a cartoon character",
+    strength: 0.75,
     stylizer: "glow",
   },
   {
