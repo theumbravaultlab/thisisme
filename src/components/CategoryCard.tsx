@@ -53,9 +53,8 @@ export function CategoryCard({ title, emoji, rows, onEdit, draggable }: Props) {
                 </span>
               </div>
             ) : (
-              <div key={row.key} className="flex min-w-0 items-baseline gap-1.5">
-                <span className="shrink-0 text-[11px] text-fg-muted">{row.emoji}</span>
-                <span className="min-w-0 flex-1 whitespace-normal break-words text-sm font-medium">
+              <div key={row.key} className="min-w-0">
+                <span className="whitespace-normal break-words text-sm font-medium">
                   {row.text}
                 </span>
               </div>
