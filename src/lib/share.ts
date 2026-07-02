@@ -34,19 +34,12 @@ const SHAREABLE_SIMPLE: (keyof ProfileData)[] = [
   "address",
 ];
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 20);
-}
-
-export function generateSlug(name: string): string {
-  const base = slugify(name) || "me";
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `${base}-${rand}`;
+// A default handle from the user's name + a short unique suffix, valid against
+// USERNAME_RE (lowercase letters/numbers/underscore, 3–20 chars).
+export function generateHandle(name: string): string {
+  const base = name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12) || "user";
+  const rand = Math.random().toString(36).replace(/[^a-z0-9]/g, "").slice(0, 5);
+  return `${base}_${rand}`.slice(0, 20);
 }
 
 // Sensible starting set: everything currently visible on the board except

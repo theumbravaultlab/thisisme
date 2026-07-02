@@ -25,7 +25,7 @@ import {
 } from "./store";
 import { readableAccent } from "./color";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
-import { buildPublicPayload, defaultPublicKeys } from "./share";
+import { buildPublicPayload, defaultPublicKeys, generateHandle } from "./share";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "local";
 
@@ -87,8 +87,18 @@ export function useProfile() {
           } else if (active) {
             setProfile({ ...cloud, cardView: localProfile.cardView, tier: localProfile.tier });
           }
-          // resolve the user's claimed handle (source of truth is the registry)
-          const handle = await getMyUsername(supabase, u.id).catch(() => "");
+          // Resolve the user's handle (registry is source of truth). If they
+          // don't have one yet, auto-assign name + a unique suffix — no forced
+          // prompt; they can change it later from Share.
+          let handle = await getMyUsername(supabase, u.id).catch(() => "");
+          if (!handle) {
+            const nameForHandle = loadProfile().data.name;
+            for (let i = 0; i < 4 && !handle; i++) {
+              const candidate = generateHandle(nameForHandle);
+              const err = await claimUsernameCloud(supabase, u.id, candidate).catch(() => "x");
+              if (!err) handle = candidate;
+            }
+          }
           if (active && handle) {
             setProfile((p) => ({ ...p, data: { ...p.data, username: handle } }));
           }
