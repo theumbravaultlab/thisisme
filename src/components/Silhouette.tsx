@@ -8,17 +8,23 @@ import Image from "next/image";
 // wireframe mannequin stands in as the placeholder.
 export function Silhouette({ photoUrl }: { photoUrl: string | null }) {
   if (photoUrl) {
+    // Transparent cut-out avatar — shown frameless so the page background
+    // surrounds the person. A soft ground glow grounds it; a drop-shadow on
+    // the (transparent) PNG gives depth without a rectangular frame.
     return (
       <div className="relative h-full w-full">
-        <div className="absolute bottom-[8%] left-1/2 h-40 w-96 -translate-x-1/2 rounded-[100%] bg-accent/25 blur-3xl" />
+        <div className="absolute bottom-[10%] left-1/2 h-36 w-80 -translate-x-1/2 rounded-[100%] bg-accent/20 blur-3xl" />
         <div className="animate-float absolute inset-0 flex items-center justify-center">
-          <div className="relative h-[88%] w-auto aspect-square overflow-hidden rounded-[2rem] shadow-[0_0_50px_-10px_var(--accent)] ring-1 ring-accent/30">
+          <div
+            className="relative h-[94%] w-auto aspect-square"
+            style={{ filter: "drop-shadow(0 18px 34px rgba(0,0,0,0.35))" }}
+          >
             <Image
               src={photoUrl}
               alt="Your avatar"
               fill
               sizes="480px"
-              className="object-cover"
+              className="object-contain"
               unoptimized
             />
           </div>

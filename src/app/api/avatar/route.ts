@@ -156,7 +156,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const finalImage = await stylize(key, sourceForStylize, finalPrompt, s, g);
+    const stylized = await stylize(key, sourceForStylize, finalPrompt, s, g);
+
+    // Remove the background from the FINAL stylized image so the avatar is a
+    // transparent cut-out of just the person — the page background then shows
+    // around them. (Skipped if the caller opted out of bg removal.)
+    let finalImage = stylized;
+    if (removeBg !== false) {
+      try {
+        finalImage = await removeBackground(key, stylized);
+      } catch {
+        finalImage = stylized; // keep the stylized (with-bg) result if this fails
+      }
+    }
     return NextResponse.json({ image: finalImage });
   } catch (e) {
     // Fail soft to the free demo path rather than erroring the user.
