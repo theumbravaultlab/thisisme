@@ -79,6 +79,16 @@ export interface ProfileData {
   // premium: user-defined stats + categories
   customFields: CustomField[];
   customCategories: CustomCategory[];
+
+  // public sharing (Phase 3)
+  share: ShareSettings;
+}
+
+export interface ShareSettings {
+  slug: string; // "" until first published
+  enabled: boolean; // is the public link live
+  // Field keys (built-in) + custom field ids that appear on the public page.
+  publicKeys: string[];
 }
 
 export interface FieldVisibility {

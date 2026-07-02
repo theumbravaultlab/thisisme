@@ -26,7 +26,7 @@ function prunePositions(positions: Profile["positions"] | undefined): Profile["p
   return pruned;
 }
 
-const STORAGE_KEY = "thisisme:profile:v8";
+const STORAGE_KEY = "thisisme:profile:v9";
 
 export const DEFAULT_PROFILE: Profile = {
   data: {
@@ -58,6 +58,7 @@ export const DEFAULT_PROFILE: Profile = {
     avatars: [],
     customFields: [],
     customCategories: [],
+    share: { slug: "", enabled: false, publicKeys: [] },
   },
   positions: {},
   visibility: {
@@ -169,6 +170,35 @@ export async function saveProfileCloud(
     theme: profile.theme,
     updated_at: new Date().toISOString(),
   });
+}
+
+// ---- Public sharing (Phase 3) -----------------------------------------------
+// The public_profiles table holds ONLY the filtered, public-safe payload —
+// private fields are never written here, so they can't leak. Anonymous reads
+// are allowed by RLS; only the owner can write their row.
+
+export async function publishPublicProfile(
+  supabase: SupabaseClient,
+  userId: string,
+  slug: string,
+  payload: Profile
+): Promise<void> {
+  await supabase.from("public_profiles").upsert(
+    {
+      slug,
+      user_id: userId,
+      payload,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+}
+
+export async function unpublishPublicProfile(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<void> {
+  await supabase.from("public_profiles").delete().eq("user_id", userId);
 }
 
 // Derive a displayable age string from the profile's settings.

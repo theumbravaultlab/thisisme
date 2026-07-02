@@ -17,9 +17,12 @@ import {
   saveProfile,
   loadProfileCloud,
   saveProfileCloud,
+  publishPublicProfile,
+  unpublishPublicProfile,
 } from "./store";
 import { readableAccent } from "./color";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
+import { buildPublicPayload, defaultPublicKeys, generateSlug } from "./share";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "local";
 
@@ -152,6 +155,15 @@ export function useProfile() {
           await saveProfileCloud(supabase, user.id, profile);
           setSaveStatus("saved");
           setLastSavedAt(Date.now());
+          // Keep the public copy in sync while sharing is on.
+          if (profile.data.share.enabled && profile.data.share.slug) {
+            await publishPublicProfile(
+              supabase,
+              user.id,
+              profile.data.share.slug,
+              buildPublicPayload(profile)
+            ).catch(() => {});
+          }
         } catch {
           setSaveStatus("local");
           setLastSavedAt(Date.now());
@@ -285,6 +297,35 @@ export function useProfile() {
     []
   );
 
+  // ---- public sharing ------------------------------------------------------
+  const enableSharing = useCallback(() => {
+    setProfile((p) => {
+      const slug = p.data.share.slug || generateSlug(p.data.name);
+      const publicKeys = p.data.share.publicKeys.length
+        ? p.data.share.publicKeys
+        : defaultPublicKeys(p);
+      return { ...p, data: { ...p.data, share: { slug, enabled: true, publicKeys } } };
+    });
+  }, []);
+
+  const disableSharing = useCallback(async () => {
+    setProfile((p) => ({
+      ...p,
+      data: { ...p.data, share: { ...p.data.share, enabled: false } },
+    }));
+    const supabase = getSupabase();
+    if (supabase && user) await unpublishPublicProfile(supabase, user.id).catch(() => {});
+  }, [user]);
+
+  const toggleShareKey = useCallback((key: string) => {
+    setProfile((p) => {
+      const set = new Set(p.data.share.publicKeys);
+      if (set.has(key)) set.delete(key);
+      else set.add(key);
+      return { ...p, data: { ...p.data, share: { ...p.data.share, publicKeys: [...set] } } };
+    });
+  }, []);
+
   const removeCustomCategory = useCallback((id: string) => {
     setProfile((p) => ({
       ...p,
@@ -368,6 +409,9 @@ export function useProfile() {
     addCustomCategory,
     updateCustomCategory,
     removeCustomCategory,
+    enableSharing,
+    disableSharing,
+    toggleShareKey,
     setPosition,
     clearPosition,
     resetPositions,

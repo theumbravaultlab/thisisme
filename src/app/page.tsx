@@ -7,6 +7,7 @@ import { MobileProfile } from "@/components/MobileProfile";
 import { EditPanel } from "@/components/EditPanel";
 import { NameTitle } from "@/components/NameTitle";
 import { AuthModal } from "@/components/AuthModal";
+import { ShareModal } from "@/components/ShareModal";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { HudSkeleton } from "@/components/HudSkeleton";
 import { Welcome } from "@/components/Welcome";
@@ -47,6 +48,9 @@ export default function Home() {
     addCustomCategory,
     updateCustomCategory,
     removeCustomCategory,
+    enableSharing,
+    disableSharing,
+    toggleShareKey,
     setPosition,
     clearPosition,
     resetPositions,
@@ -60,6 +64,7 @@ export default function Home() {
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [focusCategory, setFocusCategory] = useState<string | null>(null);
   const [focusField, setFocusField] = useState<FieldKey | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -189,6 +194,7 @@ export default function Home() {
         onToggleCardView={handleToggleCardView}
         tier={profile.tier}
         onSetTier={setTier}
+        onShare={() => setShareOpen(true)}
         highlightAvatarLink={avatarHighlighted}
         onAvatarLinkClick={dismissAvatarHighlight}
       />
@@ -290,6 +296,18 @@ export default function Home() {
         onClose={() => setAuthOpen(false)}
         signInEmail={signInEmail}
         signInGoogle={signInGoogle}
+      />
+
+      <ShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        profile={profile}
+        cloudEnabled={cloudEnabled}
+        signedIn={!!user}
+        onSignIn={() => setAuthOpen(true)}
+        enableSharing={enableSharing}
+        disableSharing={disableSharing}
+        toggleShareKey={toggleShareKey}
       />
 
       <Welcome

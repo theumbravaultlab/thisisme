@@ -16,6 +16,7 @@ interface Props {
   onToggleCardView: () => void;
   tier: Tier;
   onSetTier: (tier: Tier) => void;
+  onShare: () => void;
   highlightAvatarLink?: boolean;
   onAvatarLinkClick?: () => void;
 }
@@ -36,6 +37,7 @@ export function Header({
   onToggleCardView,
   tier,
   onSetTier,
+  onShare,
   highlightAvatarLink,
   onAvatarLinkClick,
 }: Props) {
@@ -128,6 +130,10 @@ export function Header({
               </span>
             )}
           </Link>
+
+          <button onClick={onShare} className={btn}>
+            🔗 Share
+          </button>
 
           {cloudEnabled &&
             (userEmail ? (
