@@ -5,7 +5,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProfile } from "@/lib/useProfile";
-import { stylizeImage, AVATAR_PRESETS, type AvatarPreset } from "@/lib/avatar";
+import {
+  stylizeImage,
+  AVATAR_PRESETS,
+  STRENGTH_LEVELS,
+  STRENGTH_ORDER,
+  DEFAULT_LEVEL,
+  type AvatarPreset,
+  type StrengthLevel,
+} from "@/lib/avatar";
 import { AVATAR_LIMITS } from "@/lib/types";
 import { track } from "@/lib/analytics";
 
@@ -26,7 +34,7 @@ export default function AvatarStudio() {
 
   const [source, setSource] = useState<string | null>(null);
   const [preset, setPreset] = useState<AvatarPreset>(AVATAR_PRESETS[0]);
-  const [strength, setStrength] = useState<number>(AVATAR_PRESETS[0].strength);
+  const [level, setLevel] = useState<StrengthLevel>(DEFAULT_LEVEL);
   const [removeBg, setRemoveBg] = useState(true);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,7 +44,7 @@ export default function AvatarStudio() {
 
   const choosePreset = (p: AvatarPreset) => {
     setPreset(p);
-    setStrength(p.strength);
+    setLevel(DEFAULT_LEVEL); // always default back to Balanced
   };
 
   const onFile = (file: File | undefined) => {
@@ -53,7 +61,8 @@ export default function AvatarStudio() {
     if (!effectiveSource) return;
     setBusy(true);
     setError(null);
-    track("avatar_generate", { preset: preset.key, strength });
+    const strength = STRENGTH_LEVELS[level];
+    track("avatar_generate", { preset: preset.key, level });
     try {
       const res = await fetch("/api/avatar", {
         method: "POST",
@@ -89,18 +98,7 @@ export default function AvatarStudio() {
     router.push("/");
   };
 
-  const isCartoon = preset.key === "cartoon";
-  const intensityLabel = isCartoon
-    ? strength <= 0.35
-      ? "Subtle (stays you)"
-      : strength >= 0.65
-      ? "Bold (cartoon)"
-      : "Balanced"
-    : strength <= 0.25
-    ? "Subtle touch-up"
-    : strength >= 0.45
-    ? "Strong makeover"
-    : "Balanced";
+  const levelLabel = level.charAt(0).toUpperCase() + level.slice(1);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
@@ -112,10 +110,9 @@ export default function AvatarStudio() {
       </div>
 
       <p className="mb-6 text-sm text-fg-muted">
-        Turn a photo into an avatar. We cut out the background and put you on a
-        clean backdrop first, then either cartoon-ify you or give you a polished,
-        elevated version of yourself. Every generation is saved to your library
-        ({library.length}/{cap}).
+        Turn a photo into a polished, realistic avatar. Pick a look, set the
+        intensity, and we generate a clean cut-out of you. Every generation is
+        saved to your library ({library.length}/{cap}).
       </p>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -174,17 +171,23 @@ export default function AvatarStudio() {
           <div>
             <div className="mb-1 flex items-center justify-between text-sm">
               <span className="font-medium">Intensity</span>
-              <span className="text-accent">{intensityLabel}</span>
+              <span className="text-accent">{levelLabel}</span>
             </div>
             <input
               type="range"
-              min={0.15}
-              max={0.95}
-              step={0.05}
-              value={strength}
-              onChange={(e) => setStrength(Number(e.target.value))}
+              min={0}
+              max={2}
+              step={1}
+              value={STRENGTH_ORDER.indexOf(level)}
+              onChange={(e) => setLevel(STRENGTH_ORDER[Number(e.target.value)])}
+              aria-label="Intensity"
               className="h-2 w-full cursor-pointer appearance-none rounded-full bg-border accent-accent"
             />
+            <div className="mt-1 flex justify-between text-xs text-fg-muted">
+              <span>Low</span>
+              <span>Balanced</span>
+              <span>High</span>
+            </div>
           </div>
 
           <label className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5 text-sm">

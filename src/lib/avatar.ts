@@ -12,28 +12,53 @@ export interface AvatarPreset {
   key: string;
   label: string;
   prompt: string;
-  strength: number;
   guidanceScale: number;
   stylizer: AvatarStyle;
 }
 
+// The Intensity slider has three stops mapping to a denoising strength: how
+// far the model is allowed to move from the original photo. Higher = more
+// transformation (but identity can drift). Defaults to Balanced.
+export type StrengthLevel = "low" | "balanced" | "high";
+export const STRENGTH_LEVELS: Record<StrengthLevel, number> = {
+  low: 0.25,
+  balanced: 0.45,
+  high: 0.62,
+};
+export const STRENGTH_ORDER: StrengthLevel[] = ["low", "balanced", "high"];
+export const DEFAULT_LEVEL: StrengthLevel = "balanced";
+
 export const AVATAR_PRESETS: AvatarPreset[] = [
   {
-    key: "cartoon",
-    label: "Cartoon",
+    key: "hyperreal",
+    label: "Hyperrealistic",
     prompt:
-      "3D animated movie character, Pixar and DreamWorks animation style illustration, obviously NOT a photograph, cel-shaded cartoon rendering, flat simplified cartoon skin with no pores or photographic texture, bold clean outlines, glossy cartoon eyes noticeably enlarged, smooth toon shading, vibrant saturated colors, friendly cartoon expression, simple clean background — but with the same face shape, eye color, nose, mouth and hairstyle as the reference photo so it is instantly recognizable as that specific person turned into a cartoon character",
-    strength: 0.75,
-    guidanceScale: 7.5,
-    stylizer: "glow",
+      "hyperrealistic portrait of the same specific person, keep their exact facial features, eye color, nose, mouth, hairstyle and identity perfectly recognizable and unmistakably them. Ultra-detailed lifelike skin with fine pores and natural texture, razor-sharp focus, intricate realistic detail, true-to-life colors, professional studio lighting, high-resolution photograph shot on a high-end camera — a real photo of a real person, not a painting, drawing or illustration",
+    guidanceScale: 4.5,
+    stylizer: "beauty",
   },
   {
-    key: "beautified",
-    label: "Beautified",
+    key: "cinematic",
+    label: "Cinematic",
     prompt:
-      "professional editorial portrait photograph of the same specific person, their idealized best-possible version — keep their exact facial structure, eye color and shape, nose, mouth and identity clearly recognizable and unmistakably them. Flawless but natural-looking skin, tidy well-groomed hair and eyebrows, bright healthy eyes, confident relaxed expression and posture, upgraded stylish modern outfit, professional studio portrait lighting with soft rim light, sharp high-end camera quality, color-graded like a magazine cover, subtle tasteful digital-art polish and glow — still clearly a real photo of a real person, not a cartoon, not a painting, not an illustration",
-    strength: 0.32,
-    guidanceScale: 4.5,
+      "cinematic film-still portrait of the same specific person, keep their exact facial features and identity clearly recognizable and unmistakably them. Dramatic moody lighting with soft rim light and gentle shadows, shallow depth of field with a blurred background, teal-and-orange color grade, filmic contrast and grain, movie-poster atmosphere, sharp high-end cinema camera look — a real photo of a real person, not a cartoon or illustration",
+    guidanceScale: 5.5,
+    stylizer: "beauty",
+  },
+  {
+    key: "hdr",
+    label: "HDR Realism",
+    prompt:
+      "HDR realism portrait of the same specific person, keep their exact facial features and identity clearly recognizable and unmistakably them. High dynamic range with bright balanced highlights and rich detailed shadows, crisp clarity, vivid lifelike colors, punchy contrast, ultra-clean and detailed professional photograph, tack-sharp focus — a real photo of a real person, not a painting or illustration",
+    guidanceScale: 5,
+    stylizer: "beauty",
+  },
+  {
+    key: "photoreal",
+    label: "Photorealism",
+    prompt:
+      "photorealistic portrait of the same specific person, keep their exact facial features, eye color, nose, mouth and identity clearly recognizable and unmistakably them. Natural true-to-life skin and lighting, neutral flattering studio setup, clean DSLR photograph quality, authentic realistic detail, sharp focus, believable and candid — a real photo of a real person, not a cartoon, painting or illustration",
+    guidanceScale: 4,
     stylizer: "beauty",
   },
 ];
