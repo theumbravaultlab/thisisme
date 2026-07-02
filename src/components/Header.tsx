@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { CardView } from "@/lib/types";
+import type { CardView, Tier } from "@/lib/types";
 
 interface Props {
   editing: boolean;
@@ -14,6 +14,8 @@ interface Props {
   onSignOut: () => void;
   cardView: CardView;
   onToggleCardView: () => void;
+  tier: Tier;
+  onSetTier: (tier: Tier) => void;
   highlightAvatarLink?: boolean;
   onAvatarLinkClick?: () => void;
 }
@@ -32,6 +34,8 @@ export function Header({
   onSignOut,
   cardView,
   onToggleCardView,
+  tier,
+  onSetTier,
   highlightAvatarLink,
   onAvatarLinkClick,
 }: Props) {
@@ -70,6 +74,36 @@ export function Header({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Tier toggle — testing stand-in for real billing */}
+          <div
+            role="group"
+            aria-label="Account tier (testing)"
+            title="Testing: switch tier to preview each view"
+            className="hidden items-center rounded-full border border-border bg-bg-elev/60 p-0.5 text-xs sm:inline-flex"
+          >
+            {(
+              [
+                ["standard", "Standard"],
+                ["premium", "★ Premium"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => tier !== key && onSetTier(key)}
+                aria-pressed={tier === key}
+                className={`rounded-full px-2.5 py-1 font-medium transition ${
+                  tier === key
+                    ? key === "premium"
+                      ? "bg-gradient-to-r from-amber-400 to-accent text-white"
+                      : "bg-accent text-white"
+                    : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
@@ -121,8 +155,8 @@ export function Header({
         </div>
       </div>
 
-      {/* mobile: card view toggle on its own row */}
-      <div className="flex justify-center border-t border-border/60 py-2 sm:hidden">
+      {/* mobile: card view + tier toggles on their own row */}
+      <div className="flex justify-center gap-2 border-t border-border/60 py-2 sm:hidden">
         <div
           role="group"
           aria-label="Card view"
@@ -140,6 +174,30 @@ export function Header({
               aria-pressed={cardView === key}
               className={`rounded-full px-3 py-1 font-medium transition ${
                 cardView === key ? "bg-accent text-white" : "text-fg-muted hover:text-fg"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          role="group"
+          aria-label="Account tier (testing)"
+          className="inline-flex items-center rounded-full border border-border bg-bg-elev/60 p-0.5 text-xs"
+        >
+          {(
+            [
+              ["standard", "Standard"],
+              ["premium", "★ Premium"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => tier !== key && onSetTier(key)}
+              aria-pressed={tier === key}
+              className={`rounded-full px-3 py-1 font-medium transition ${
+                tier === key ? "bg-accent text-white" : "text-fg-muted hover:text-fg"
               }`}
             >
               {label}

@@ -154,7 +154,7 @@ export function ProfileHud({
   const [showHint, setShowHint] = useState(true);
   const { registerCard, sizeOf } = useCardSizes(stageRef);
 
-  const visible = getHudCards(profile.cardView, profile.visibility);
+  const visible = getHudCards(profile);
 
   // Compute final, collision-free positions for every visible card in one
   // pass: manual placements win, auto slots fill the rest, and any resulting
@@ -298,8 +298,7 @@ export function ProfileHud({
               <CategoryCard
                 title={card.title}
                 emoji={card.emoji}
-                fields={card.fields}
-                profile={profile}
+                rows={card.rows}
                 draggable={interactive}
                 onEdit={interactive ? () => onEditCard(card) : undefined}
               />

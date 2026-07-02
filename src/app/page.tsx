@@ -14,6 +14,7 @@ import { Toast, type ToastState } from "@/components/Toast";
 import { useProfile } from "@/lib/useProfile";
 import { track } from "@/lib/analytics";
 import { countHiddenSections, type HudCardSpec } from "@/lib/hudCards";
+import type { FieldKey } from "@/lib/types";
 
 function relTime(ts: number | null, now: number): string {
   if (!ts) return "";
@@ -39,6 +40,13 @@ export default function Home() {
     toggleVisibility,
     toggleTheme,
     toggleCardView,
+    setTier,
+    addCustomField,
+    updateCustomField,
+    removeCustomField,
+    addCustomCategory,
+    updateCustomCategory,
+    removeCustomCategory,
     setPosition,
     clearPosition,
     resetPositions,
@@ -48,10 +56,12 @@ export default function Home() {
     signOut,
   } = useProfile();
 
+  const premium = profile.tier === "premium";
+
   const [panelOpen, setPanelOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [focusCategory, setFocusCategory] = useState<string | null>(null);
-  const [focusField, setFocusField] = useState<HudCardSpec["fields"][number] | null>(null);
+  const [focusField, setFocusField] = useState<FieldKey | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -127,18 +137,24 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [saveStatus]);
 
-  // Grouped cards (multiple fields) open their whole category; detailed
-  // cards (a single field) jump straight to that field's own editor.
+  // A single built-in field card jumps to that field's editor; everything else
+  // (grouped category cards, custom-field cards) opens the whole category.
   const editCard = (card: HudCardSpec) => {
-    if (card.fields.length === 1) {
+    if (card.editField) {
+      setFocusField(card.editField);
       setFocusCategory(null);
-      setFocusField(card.fields[0]);
     } else {
       setFocusField(null);
-      setFocusCategory(card.title);
+      setFocusCategory(card.editCategoryKey);
     }
     setPanelOpen(true);
     track("edit_card", { card: card.key, mode: profile.cardView });
+  };
+
+  // Testing stand-in for a real checkout — flips the account to premium.
+  const upgrade = () => {
+    setTier("premium");
+    track("upgrade_clicked");
   };
 
   const handleReset = () => {
@@ -156,7 +172,7 @@ export default function Home() {
   };
 
   const savedLabel = relTime(lastSavedAt, now);
-  const hiddenSectionCount = countHiddenSections(profile.visibility);
+  const hiddenSectionCount = countHiddenSections(profile);
 
   return (
     <>
@@ -171,6 +187,8 @@ export default function Home() {
         onSignOut={signOut}
         cardView={profile.cardView}
         onToggleCardView={handleToggleCardView}
+        tier={profile.tier}
+        onSetTier={setTier}
         highlightAvatarLink={avatarHighlighted}
         onAvatarLinkClick={dismissAvatarHighlight}
       />
@@ -253,8 +271,16 @@ export default function Home() {
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
         profile={profile}
+        premium={premium}
+        onUpgrade={upgrade}
         update={updateData}
         toggleVisibility={toggleVisibility}
+        addCustomField={addCustomField}
+        updateCustomField={updateCustomField}
+        removeCustomField={removeCustomField}
+        addCustomCategory={addCustomCategory}
+        updateCustomCategory={updateCustomCategory}
+        removeCustomCategory={removeCustomCategory}
         focusCategory={focusCategory}
         focusField={focusField}
       />
@@ -279,7 +305,14 @@ export default function Home() {
       <Toast toast={toast} onDismiss={() => setToast(null)} />
 
       <footer className="border-t border-border px-4 py-4 text-center text-sm text-fg-muted">
-        {user
+        {/* premium removes the "thisisme" branding */}
+        {premium
+          ? user
+            ? `Synced to ${user.email}`
+            : cloudEnabled
+            ? "Sign in to sync across devices"
+            : "Saved on this device"
+          : user
           ? `thisisme · synced to ${user.email}`
           : cloudEnabled
           ? "thisisme · sign in to sync across devices"

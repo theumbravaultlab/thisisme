@@ -22,7 +22,7 @@ export function MobileProfile({
   onEditCard: (card: HudCardSpec) => void;
   interactive?: boolean;
 }) {
-  const visible = getHudCards(profile.cardView, profile.visibility);
+  const visible = getHudCards(profile);
   const heroRef = useRef<HTMLDivElement>(null);
   const [heroVisible, setHeroVisible] = useState(true);
 
@@ -92,21 +92,11 @@ export function MobileProfile({
               aria-label={`Edit ${card.title}`}
               className="block text-left active:scale-[0.98]"
             >
-              <CategoryCard
-                title={card.title}
-                emoji={card.emoji}
-                fields={card.fields}
-                profile={profile}
-              />
+              <CategoryCard title={card.title} emoji={card.emoji} rows={card.rows} />
             </motion.button>
           ) : (
             <div key={card.key}>
-              <CategoryCard
-                title={card.title}
-                emoji={card.emoji}
-                fields={card.fields}
-                profile={profile}
-              />
+              <CategoryCard title={card.title} emoji={card.emoji} rows={card.rows} />
             </div>
           )
         )}

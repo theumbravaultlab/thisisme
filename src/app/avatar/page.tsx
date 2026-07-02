@@ -6,11 +6,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProfile } from "@/lib/useProfile";
 import { stylizeImage, AVATAR_PRESETS, type AvatarPreset } from "@/lib/avatar";
+import { AVATAR_LIMITS } from "@/lib/types";
 import { track } from "@/lib/analytics";
 
 export default function AvatarStudio() {
-  const { profile, hydrated, updateData } = useProfile();
+  const {
+    profile,
+    hydrated,
+    setTier,
+    addToLibrary,
+    setActiveAvatar,
+    removeAvatar,
+  } = useProfile();
   const router = useRouter();
+
+  const premium = profile.tier === "premium";
+  const cap = AVATAR_LIMITS[profile.tier];
+  const library = profile.data.avatars;
 
   const [source, setSource] = useState<string | null>(null);
   const [preset, setPreset] = useState<AvatarPreset>(AVATAR_PRESETS[0]);
@@ -56,16 +68,14 @@ export default function AvatarStudio() {
         }),
       });
       const data = await res.json();
-      if (data.image) {
-        setResult(data.image); // real model result
-      } else {
-        // free demo path — stylize locally with the preset's look
-        const styled = await stylizeImage(effectiveSource, {
-          color: profile.data.favoriteColor,
-          style: preset.stylizer,
-        });
-        setResult(styled);
-      }
+      const finalImage = data.image
+        ? data.image
+        : await stylizeImage(effectiveSource, {
+            color: profile.data.favoriteColor,
+            style: preset.stylizer,
+          });
+      setResult(finalImage);
+      addToLibrary(finalImage); // auto-saved to the library (tier-capped)
     } catch {
       setError("Couldn't generate — please try again.");
     } finally {
@@ -73,9 +83,8 @@ export default function AvatarStudio() {
     }
   };
 
-  const useAsAvatar = () => {
-    if (!result) return;
-    updateData("photoDataUrl", result);
+  const applyAndGoHome = (dataUrl: string) => {
+    setActiveAvatar(dataUrl);
     track("avatar_applied", { preset: preset.key });
     router.push("/");
   };
@@ -103,9 +112,10 @@ export default function AvatarStudio() {
       </div>
 
       <p className="mb-6 text-sm text-fg-muted">
-        Turn a photo into an avatar. We cut out the background and put you on
-        a clean backdrop first, then either cartoon-ify you or give you a
-        polished, elevated version of yourself.
+        Turn a photo into an avatar. We cut out the background and put you on a
+        clean backdrop first, then either cartoon-ify you or give you a polished,
+        elevated version of yourself. Every generation is saved to your library
+        ({library.length}/{cap}).
       </p>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -175,19 +185,12 @@ export default function AvatarStudio() {
               onChange={(e) => setStrength(Number(e.target.value))}
               className="h-2 w-full cursor-pointer appearance-none rounded-full bg-border accent-accent"
             />
-            <p className="mt-1 text-xs text-fg-muted">
-              {isCartoon
-                ? "Lower keeps your likeness; higher pushes further into cartoon territory."
-                : "Lower stays closer to the original photo; higher pushes further toward the idealized version."}
-            </p>
           </div>
 
           <label className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5 text-sm">
             <span>
               Remove background
-              <span className="ml-1.5 text-xs text-fg-muted">
-                (isolates you on a clean backdrop first)
-              </span>
+              <span className="ml-1.5 text-xs text-fg-muted">(clean backdrop)</span>
             </span>
             <input
               type="checkbox"
@@ -207,7 +210,7 @@ export default function AvatarStudio() {
 
           {result && (
             <button
-              onClick={useAsAvatar}
+              onClick={() => applyAndGoHome(result)}
               className="rounded-xl border border-accent px-4 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent/10"
             >
               Use as my profile avatar
@@ -215,13 +218,71 @@ export default function AvatarStudio() {
           )}
 
           {error && <p className="text-sm text-red-500">{error}</p>}
-
-          <p className="text-xs text-fg-muted">
-            Background removal + AI stylization need a connected image model.
-            Without one, this applies a free color-filter preview instead.
-          </p>
         </div>
       </div>
+
+      {/* avatar library */}
+      {library.length > 0 && (
+        <div className="mt-8">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Your avatars</h2>
+            <span className="text-xs text-fg-muted">
+              {library.length}/{cap} saved
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+            {library.map((a) => {
+              const active = a === profile.data.photoDataUrl;
+              return (
+                <div key={a} className="group relative aspect-square">
+                  <button
+                    onClick={() => setActiveAvatar(a)}
+                    className={`relative h-full w-full overflow-hidden rounded-xl border-2 transition ${
+                      active ? "border-accent" : "border-transparent hover:border-border"
+                    }`}
+                    aria-label={active ? "Active avatar" : "Use this avatar"}
+                  >
+                    <Image src={a} alt="" fill sizes="120px" className="object-cover" unoptimized />
+                    {active && (
+                      <span className="absolute bottom-1 left-1 rounded-full bg-accent px-1.5 text-[10px] font-semibold text-white">
+                        Active
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => removeAvatar(a)}
+                    className="absolute -right-1.5 -top-1.5 hidden h-5 w-5 items-center justify-center rounded-full border border-border bg-bg text-xs group-hover:flex"
+                    aria-label="Remove avatar"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* premium nudge on the library cap */}
+      {!premium && (
+        <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/5 px-4 py-3 text-sm">
+          <span>
+            <span className="font-semibold">★ Premium</span> keeps up to{" "}
+            {AVATAR_LIMITS.premium} avatars (Standard keeps {AVATAR_LIMITS.standard}).
+          </span>
+          <button
+            onClick={() => setTier("premium")}
+            className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+          >
+            Upgrade
+          </button>
+        </div>
+      )}
+
+      <p className="mt-6 text-xs text-fg-muted">
+        Background removal + AI stylization need a connected image model. Without
+        one, this applies a free color-filter preview instead.
+      </p>
     </main>
   );
 }

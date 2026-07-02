@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { Profile, ProfileData, FieldKey, Pos } from "./types";
+import {
+  Profile,
+  ProfileData,
+  FieldKey,
+  Pos,
+  CustomField,
+  CustomCategory,
+  AVATAR_LIMITS,
+} from "./types";
 import {
   DEFAULT_PROFILE,
   loadProfile,
@@ -60,19 +68,18 @@ export function useProfile() {
         if (!active) return;
         try {
           const { profile: cloud, isEmpty } = await loadProfileCloud(supabase, u.id);
-          // cardView is a client-only preference (not part of the Supabase
-          // row), so always carry over whatever's saved locally.
-          const localCardView = loadProfile().cardView;
+          // cardView + tier are client-only preferences (not part of the
+          // Supabase row), so always carry over whatever's saved locally.
+          const localProfile = loadProfile();
           if (isEmpty) {
-            const local = loadProfile();
             try {
-              await saveProfileCloud(supabase, u.id, local);
+              await saveProfileCloud(supabase, u.id, localProfile);
             } catch {
               /* table may not exist yet — falls back to local saves */
             }
-            if (active) setProfile(local);
+            if (active) setProfile(localProfile);
           } else if (active) {
-            setProfile({ ...cloud, cardView: localCardView });
+            setProfile({ ...cloud, cardView: localProfile.cardView, tier: localProfile.tier });
           }
         } catch {
           if (active) setProfile(loadProfile());
@@ -182,6 +189,114 @@ export function useProfile() {
     }));
   }, []);
 
+  // ---- tier (testing toggle; real billing would set this server-side) ------
+  const setTier = useCallback((tier: Profile["tier"]) => {
+    setProfile((p) => ({ ...p, tier }));
+  }, []);
+
+  // ---- avatar library ------------------------------------------------------
+  // Every generation is added here; standard keeps the 3 most recent, premium
+  // keeps 20. Adding does NOT change the active avatar — the user picks that.
+  const addToLibrary = useCallback((dataUrl: string) => {
+    setProfile((p) => {
+      const cap = AVATAR_LIMITS[p.tier];
+      const avatars = [dataUrl, ...p.data.avatars.filter((a) => a !== dataUrl)].slice(0, cap);
+      return { ...p, data: { ...p.data, avatars } };
+    });
+  }, []);
+
+  const setActiveAvatar = useCallback((dataUrl: string) => {
+    setProfile((p) => ({ ...p, data: { ...p.data, photoDataUrl: dataUrl } }));
+  }, []);
+
+  const removeAvatar = useCallback((dataUrl: string) => {
+    setProfile((p) => {
+      const avatars = p.data.avatars.filter((a) => a !== dataUrl);
+      const photoDataUrl =
+        p.data.photoDataUrl === dataUrl ? avatars[0] ?? null : p.data.photoDataUrl;
+      return { ...p, data: { ...p.data, avatars, photoDataUrl } };
+    });
+  }, []);
+
+  // ---- custom fields + categories (premium) --------------------------------
+  const addCustomField = useCallback((categoryKey: string) => {
+    const field: CustomField = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      label: "New detail",
+      emoji: "✨",
+      value: "",
+      categoryKey,
+      visible: true,
+    };
+    setProfile((p) => ({
+      ...p,
+      data: { ...p.data, customFields: [...p.data.customFields, field] },
+    }));
+    return field.id;
+  }, []);
+
+  const updateCustomField = useCallback(
+    (id: string, patch: Partial<CustomField>) => {
+      setProfile((p) => ({
+        ...p,
+        data: {
+          ...p.data,
+          customFields: p.data.customFields.map((f) =>
+            f.id === id ? { ...f, ...patch } : f
+          ),
+        },
+      }));
+    },
+    []
+  );
+
+  const removeCustomField = useCallback((id: string) => {
+    setProfile((p) => ({
+      ...p,
+      data: { ...p.data, customFields: p.data.customFields.filter((f) => f.id !== id) },
+    }));
+  }, []);
+
+  const addCustomCategory = useCallback(() => {
+    const cat: CustomCategory = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      title: "New Category",
+      emoji: "🗂️",
+    };
+    setProfile((p) => ({
+      ...p,
+      data: { ...p.data, customCategories: [...p.data.customCategories, cat] },
+    }));
+    return cat.id;
+  }, []);
+
+  const updateCustomCategory = useCallback(
+    (id: string, patch: Partial<CustomCategory>) => {
+      setProfile((p) => ({
+        ...p,
+        data: {
+          ...p.data,
+          customCategories: p.data.customCategories.map((c) =>
+            c.id === id ? { ...c, ...patch } : c
+          ),
+        },
+      }));
+    },
+    []
+  );
+
+  const removeCustomCategory = useCallback((id: string) => {
+    setProfile((p) => ({
+      ...p,
+      data: {
+        ...p.data,
+        // also drop any fields that lived in the removed category
+        customCategories: p.data.customCategories.filter((c) => c.id !== id),
+        customFields: p.data.customFields.filter((f) => f.categoryKey !== `cat:${id}`),
+      },
+    }));
+  }, []);
+
   const setPosition = useCallback((key: string, pos: Pos) => {
     setProfile((p) => ({ ...p, positions: { ...p.positions, [key]: pos } }));
   }, []);
@@ -243,6 +358,16 @@ export function useProfile() {
     toggleVisibility,
     toggleTheme,
     toggleCardView,
+    setTier,
+    addToLibrary,
+    setActiveAvatar,
+    removeAvatar,
+    addCustomField,
+    updateCustomField,
+    removeCustomField,
+    addCustomCategory,
+    updateCustomCategory,
+    removeCustomCategory,
     setPosition,
     clearPosition,
     resetPositions,

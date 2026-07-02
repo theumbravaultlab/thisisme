@@ -19,6 +19,7 @@ interface Props {
   field: FieldKey;
   data: ProfileData;
   editing: boolean;
+  premium?: boolean;
   update: <K extends keyof ProfileData>(key: K, value: ProfileData[K]) => void;
 }
 
@@ -42,7 +43,7 @@ function formatHeight(cm: number): string {
 }
 
 // CardBody is rendered in edit mode inside the Customize panel.
-export function CardBody({ field, data, update }: Props) {
+export function CardBody({ field, data, update, premium = false }: Props) {
   switch (field) {
     case "name":
       return (
@@ -55,20 +56,26 @@ export function CardBody({ field, data, update }: Props) {
           <div>
             <label className="mb-1 block text-xs text-fg-muted">Name font</label>
             <div className="grid grid-cols-2 gap-2">
-              {FONT_OPTIONS.map((f) => (
-                <button
-                  key={f.key}
-                  onClick={() => update("nameFont", f.key)}
-                  style={{ fontFamily: fontVar(f.key) }}
-                  className={`rounded-lg border px-3 py-2 text-base transition ${
-                    data.nameFont === f.key
-                      ? "border-accent bg-accent/15 text-fg"
-                      : "border-border text-fg-muted"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+              {FONT_OPTIONS.map((f) => {
+                const locked = f.premium && !premium;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => !locked && update("nameFont", f.key)}
+                    disabled={locked}
+                    title={locked ? "Premium font" : undefined}
+                    style={{ fontFamily: fontVar(f.key) }}
+                    className={`flex items-center justify-center gap-1 rounded-lg border px-3 py-2 text-base transition ${
+                      data.nameFont === f.key
+                        ? "border-accent bg-accent/15 text-fg"
+                        : "border-border text-fg-muted"
+                    } ${locked ? "cursor-not-allowed opacity-50" : ""}`}
+                  >
+                    {f.label}
+                    {locked && <span className="text-xs">🔒</span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -151,6 +158,7 @@ export function CardBody({ field, data, update }: Props) {
           value={data.favoriteAnimal}
           onChange={(v) => update("favoriteAnimal", v)}
           options={SPIRIT_ANIMAL_OPTIONS}
+          allowCustom={premium}
         />
       );
 
@@ -207,6 +215,7 @@ export function CardBody({ field, data, update }: Props) {
           value={data.relationshipStatus}
           onChange={(v) => update("relationshipStatus", v)}
           options={RELATIONSHIP_OPTIONS}
+          allowCustom={premium}
         />
       );
 
@@ -216,6 +225,7 @@ export function CardBody({ field, data, update }: Props) {
           value={data.religion}
           onChange={(v) => update("religion", v)}
           options={RELIGION_OPTIONS}
+          allowCustom={premium}
         />
       );
 

@@ -8,6 +8,33 @@ export type ThemePreference = "light" | "dark";
 // own card.
 export type CardView = "grouped" | "detailed";
 
+// Subscription tier. (Toggled locally for now; would be server-authoritative
+// once real billing exists.)
+export type Tier = "standard" | "premium";
+
+// How many generated avatars each tier keeps in the library.
+export const AVATAR_LIMITS: Record<Tier, number> = { standard: 3, premium: 20 };
+
+// A premium-only user-defined stat, e.g. "Favorite Fruit".
+export interface CustomField {
+  id: string;
+  label: string;
+  emoji: string;
+  value: string;
+  categoryKey: string; // a built-in category title, or "cat:<id>" for a custom one
+  visible: boolean;
+}
+
+// A premium-only user-defined category the custom fields can live under.
+export interface CustomCategory {
+  id: string;
+  title: string;
+  emoji: string;
+}
+
+export const customCatKey = (id: string) => `cat:${id}`;
+export const customFieldCardKey = (id: string) => `cf:${id}`;
+
 export interface ProfileData {
   // identity
   name: string;
@@ -45,6 +72,13 @@ export interface ProfileData {
   email: string;
   instagram: string;
   address: string;
+
+  // avatar library (generated avatars the user can switch between)
+  avatars: string[];
+
+  // premium: user-defined stats + categories
+  customFields: CustomField[];
+  customCategories: CustomCategory[];
 }
 
 export interface FieldVisibility {
@@ -86,6 +120,7 @@ export interface Profile {
   visibility: FieldVisibility;
   theme: ThemePreference;
   cardView: CardView;
+  tier: Tier;
   positions: Partial<Record<string, Pos>>;
 }
 
@@ -155,13 +190,18 @@ export const CATEGORIES: { title: string; emoji: string; fields: FieldKey[] }[] 
 
 // Selectable display fonts for the profile name. Keys map to CSS variables set
 // in the root layout via next/font.
-export const FONT_OPTIONS: { key: string; label: string; var: string }[] = [
+export const FONT_OPTIONS: {
+  key: string;
+  label: string;
+  var: string;
+  premium?: boolean;
+}[] = [
   { key: "sans", label: "Clean Sans", var: "var(--font-geist-sans)" },
   { key: "serif", label: "Elegant Serif", var: "var(--font-serif)" },
   { key: "rounded", label: "Rounded", var: "var(--font-rounded)" },
-  { key: "script", label: "Handwritten", var: "var(--font-script)" },
-  { key: "display", label: "Bold Display", var: "var(--font-display)" },
   { key: "mono", label: "Monospace", var: "var(--font-geist-mono)" },
+  { key: "script", label: "Handwritten", var: "var(--font-script)", premium: true },
+  { key: "display", label: "Bold Display", var: "var(--font-display)", premium: true },
 ];
 
 export function fontVar(key: string): string {

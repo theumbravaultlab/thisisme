@@ -17,12 +17,16 @@ function prunePositions(positions: Profile["positions"] | undefined): Profile["p
   if (!positions) return {};
   const pruned: Profile["positions"] = {};
   for (const [key, pos] of Object.entries(positions)) {
-    if (VALID_POSITION_KEYS.has(key)) pruned[key] = pos;
+    // Keep built-in category/field keys, plus custom category ("cat:") and
+    // custom field ("cf:") keys so premium custom cards keep their positions.
+    if (VALID_POSITION_KEYS.has(key) || key.startsWith("cat:") || key.startsWith("cf:")) {
+      pruned[key] = pos;
+    }
   }
   return pruned;
 }
 
-const STORAGE_KEY = "thisisme:profile:v7";
+const STORAGE_KEY = "thisisme:profile:v8";
 
 export const DEFAULT_PROFILE: Profile = {
   data: {
@@ -51,6 +55,9 @@ export const DEFAULT_PROFILE: Profile = {
     email: "",
     instagram: "",
     address: "",
+    avatars: [],
+    customFields: [],
+    customCategories: [],
   },
   positions: {},
   visibility: {
@@ -80,6 +87,7 @@ export const DEFAULT_PROFILE: Profile = {
   },
   theme: "dark",
   cardView: "grouped",
+  tier: "standard",
 };
 
 export function loadProfile(): Profile {
@@ -94,6 +102,7 @@ export function loadProfile(): Profile {
       visibility: { ...DEFAULT_PROFILE.visibility, ...parsed.visibility },
       theme: parsed.theme ?? DEFAULT_PROFILE.theme,
       cardView: parsed.cardView ?? DEFAULT_PROFILE.cardView,
+      tier: parsed.tier ?? DEFAULT_PROFILE.tier,
       positions: prunePositions(parsed.positions),
     };
   } catch {
@@ -116,6 +125,7 @@ interface ProfileRow {
   positions?: Profile["positions"];
   theme?: Profile["theme"];
   cardView?: Profile["cardView"];
+  tier?: Profile["tier"];
 }
 
 function mergeRow(row: ProfileRow): Profile {
@@ -124,6 +134,7 @@ function mergeRow(row: ProfileRow): Profile {
     visibility: { ...DEFAULT_PROFILE.visibility, ...row.visibility },
     theme: row.theme ?? DEFAULT_PROFILE.theme,
     cardView: row.cardView ?? DEFAULT_PROFILE.cardView,
+    tier: row.tier ?? DEFAULT_PROFILE.tier,
     positions: prunePositions(row.positions),
   };
 }
