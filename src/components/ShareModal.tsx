@@ -13,6 +13,7 @@ interface Props {
   cloudEnabled: boolean;
   signedIn: boolean;
   onSignIn: () => void;
+  onSetHandle: () => void;
   enableSharing: () => void;
   disableSharing: () => void;
   toggleShareKey: (key: string) => void;
@@ -25,16 +26,17 @@ export function ShareModal({
   cloudEnabled,
   signedIn,
   onSignIn,
+  onSetHandle,
   enableSharing,
   disableSharing,
   toggleShareKey,
 }: Props) {
-  const { share } = profile.data;
+  const { share, username } = profile.data;
   const [copied, setCopied] = useState(false);
 
   const shareUrl =
-    typeof window !== "undefined" && share.slug
-      ? `${window.location.origin}/p/${share.slug}`
+    typeof window !== "undefined" && username
+      ? `${window.location.origin}/p/${username}`
       : "";
 
   const copy = async () => {
@@ -104,6 +106,24 @@ export function ShareModal({
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
+                  {/* handle */}
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-bg px-3.5 py-3 text-sm">
+                    <span>
+                      Your handle:{" "}
+                      {username ? (
+                        <span className="font-semibold">@{username}</span>
+                      ) : (
+                        <span className="text-fg-muted">not set</span>
+                      )}
+                    </span>
+                    <button
+                      onClick={onSetHandle}
+                      className="rounded-lg border border-border px-2.5 py-1 text-xs transition hover:border-accent"
+                    >
+                      {username ? "Change" : "Set handle"}
+                    </button>
+                  </div>
+
                   {/* master toggle */}
                   <label className="flex items-center justify-between rounded-xl border border-border bg-bg px-3.5 py-3">
                     <span className="text-sm font-medium">
@@ -115,10 +135,24 @@ export function ShareModal({
                     <input
                       type="checkbox"
                       checked={share.enabled}
-                      onChange={(e) => (e.target.checked ? enableSharing() : disableSharing())}
-                      className="h-4 w-4 accent-accent"
+                      disabled={!username}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          if (!username) onSetHandle();
+                          else enableSharing();
+                        } else {
+                          disableSharing();
+                        }
+                      }}
+                      className="h-4 w-4 accent-accent disabled:opacity-40"
                     />
                   </label>
+
+                  {!username && (
+                    <p className="-mt-2 text-xs text-fg-muted">
+                      Set a handle first — it becomes your public link.
+                    </p>
+                  )}
 
                   {share.enabled && (
                     <>

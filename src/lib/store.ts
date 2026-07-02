@@ -26,11 +26,12 @@ function prunePositions(positions: Profile["positions"] | undefined): Profile["p
   return pruned;
 }
 
-const STORAGE_KEY = "thisisme:profile:v9";
+const STORAGE_KEY = "thisisme:profile:v10";
 
 export const DEFAULT_PROFILE: Profile = {
   data: {
     name: "Your Name",
+    username: "",
     nameFont: "sans",
     photoDataUrl: null,
     ageDisplayMode: "range",
@@ -199,6 +200,62 @@ export async function unpublishPublicProfile(
   userId: string
 ): Promise<void> {
   await supabase.from("public_profiles").delete().eq("user_id", userId);
+}
+
+// ---- Usernames / handles ----------------------------------------------------
+// Public registry table, only for uniqueness + resolving a handle to a user.
+// Anyone can read (availability checks + public lookups); owner-only writes.
+
+export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+export function normalizeUsername(s: string): string {
+  return s.toLowerCase().trim();
+}
+
+// True if free to claim (or already owned by this user).
+export async function isUsernameAvailable(
+  supabase: SupabaseClient,
+  username: string,
+  userId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("usernames")
+    .select("user_id")
+    .eq("username", normalizeUsername(username))
+    .maybeSingle();
+  return !data || data.user_id === userId;
+}
+
+export async function getMyUsername(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<string> {
+  const { data } = await supabase
+    .from("usernames")
+    .select("username")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data?.username ?? "";
+}
+
+// Claim / change a handle. Returns an error string, or null on success.
+export async function claimUsername(
+  supabase: SupabaseClient,
+  userId: string,
+  username: string
+): Promise<string | null> {
+  const u = normalizeUsername(username);
+  if (!USERNAME_RE.test(u)) {
+    return "3–20 characters: letters, numbers, underscore.";
+  }
+  const { error } = await supabase
+    .from("usernames")
+    .upsert({ username: u, user_id: userId }, { onConflict: "user_id" });
+  if (error) {
+    // 23505 = unique violation on the username PK → taken by someone else.
+    return error.code === "23505" ? "That handle is taken." : error.message;
+  }
+  return null;
 }
 
 // Derive a displayable age string from the profile's settings.

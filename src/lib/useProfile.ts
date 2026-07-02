@@ -19,10 +19,13 @@ import {
   saveProfileCloud,
   publishPublicProfile,
   unpublishPublicProfile,
+  getMyUsername,
+  claimUsername as claimUsernameCloud,
+  isUsernameAvailable,
 } from "./store";
 import { readableAccent } from "./color";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
-import { buildPublicPayload, defaultPublicKeys, generateSlug } from "./share";
+import { buildPublicPayload, defaultPublicKeys } from "./share";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "local";
 
@@ -83,6 +86,11 @@ export function useProfile() {
             if (active) setProfile(localProfile);
           } else if (active) {
             setProfile({ ...cloud, cardView: localProfile.cardView, tier: localProfile.tier });
+          }
+          // resolve the user's claimed handle (source of truth is the registry)
+          const handle = await getMyUsername(supabase, u.id).catch(() => "");
+          if (active && handle) {
+            setProfile((p) => ({ ...p, data: { ...p.data, username: handle } }));
           }
         } catch {
           if (active) setProfile(loadProfile());
@@ -155,12 +163,13 @@ export function useProfile() {
           await saveProfileCloud(supabase, user.id, profile);
           setSaveStatus("saved");
           setLastSavedAt(Date.now());
-          // Keep the public copy in sync while sharing is on.
-          if (profile.data.share.enabled && profile.data.share.slug) {
+          // Keep the public copy in sync while sharing is on. The public link
+          // is the user's handle, so publishing requires one.
+          if (profile.data.share.enabled && profile.data.username) {
             await publishPublicProfile(
               supabase,
               user.id,
-              profile.data.share.slug,
+              profile.data.username,
               buildPublicPayload(profile)
             ).catch(() => {});
           }
@@ -297,14 +306,42 @@ export function useProfile() {
     []
   );
 
+  // ---- usernames / handles -------------------------------------------------
+  const checkUsername = useCallback(
+    async (name: string) => {
+      const supabase = getSupabase();
+      if (!supabase || !user) return false;
+      return isUsernameAvailable(supabase, name, user.id).catch(() => false);
+    },
+    [user]
+  );
+
+  const claimUsername = useCallback(
+    async (name: string): Promise<string | null> => {
+      const supabase = getSupabase();
+      if (!supabase || !user) return "Sign in required";
+      const err = await claimUsernameCloud(supabase, user.id, name);
+      if (!err) {
+        setProfile((p) => ({
+          ...p,
+          data: { ...p.data, username: name.toLowerCase().trim() },
+        }));
+      }
+      return err;
+    },
+    [user]
+  );
+
   // ---- public sharing ------------------------------------------------------
   const enableSharing = useCallback(() => {
     setProfile((p) => {
-      const slug = p.data.share.slug || generateSlug(p.data.name);
       const publicKeys = p.data.share.publicKeys.length
         ? p.data.share.publicKeys
         : defaultPublicKeys(p);
-      return { ...p, data: { ...p.data, share: { slug, enabled: true, publicKeys } } };
+      return {
+        ...p,
+        data: { ...p.data, share: { slug: p.data.username, enabled: true, publicKeys } },
+      };
     });
   }, []);
 
@@ -412,6 +449,8 @@ export function useProfile() {
     enableSharing,
     disableSharing,
     toggleShareKey,
+    checkUsername,
+    claimUsername,
     setPosition,
     clearPosition,
     resetPositions,

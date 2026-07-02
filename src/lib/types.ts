@@ -38,6 +38,7 @@ export const customFieldCardKey = (id: string) => `cf:${id}`;
 export interface ProfileData {
   // identity
   name: string;
+  username: string; // claimed handle → public link is /p/<username>
   nameFont: string; // font key from FONT_OPTIONS (styles the name title)
   photoDataUrl: string | null;
 

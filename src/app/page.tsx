@@ -8,6 +8,7 @@ import { EditPanel } from "@/components/EditPanel";
 import { NameTitle } from "@/components/NameTitle";
 import { AuthModal } from "@/components/AuthModal";
 import { ShareModal } from "@/components/ShareModal";
+import { UsernameModal } from "@/components/UsernameModal";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { HudSkeleton } from "@/components/HudSkeleton";
 import { Welcome } from "@/components/Welcome";
@@ -51,6 +52,8 @@ export default function Home() {
     enableSharing,
     disableSharing,
     toggleShareKey,
+    checkUsername,
+    claimUsername,
     setPosition,
     clearPosition,
     resetPositions,
@@ -65,6 +68,8 @@ export default function Home() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [usernameOpen, setUsernameOpen] = useState(false);
+  const [usernamePrompted, setUsernamePrompted] = useState(false);
   const [focusCategory, setFocusCategory] = useState<string | null>(null);
   const [focusField, setFocusField] = useState<FieldKey | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -121,6 +126,15 @@ export default function Home() {
     localStorage.setItem("thisisme:avatarSeen", "1");
     setAvatarHighlighted(false);
   };
+
+  // Prompt for a handle once, right after sign-in, if they don't have one.
+  useEffect(() => {
+    if (!hydrated || !user || !cloudEnabled) return;
+    if (profile.data.username || usernamePrompted) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUsernamePrompted(true);
+    setUsernameOpen(true);
+  }, [hydrated, user, cloudEnabled, profile.data.username, usernamePrompted]);
 
   // Brief skeleton flash + save-pulse whenever the card view mode changes, so
   // the reflow reads as an intentional transition rather than a jarring pop.
@@ -305,9 +319,18 @@ export default function Home() {
         cloudEnabled={cloudEnabled}
         signedIn={!!user}
         onSignIn={() => setAuthOpen(true)}
+        onSetHandle={() => setUsernameOpen(true)}
         enableSharing={enableSharing}
         disableSharing={disableSharing}
         toggleShareKey={toggleShareKey}
+      />
+
+      <UsernameModal
+        open={usernameOpen}
+        onClose={() => setUsernameOpen(false)}
+        currentUsername={profile.data.username}
+        checkUsername={checkUsername}
+        claimUsername={claimUsername}
       />
 
       <Welcome
