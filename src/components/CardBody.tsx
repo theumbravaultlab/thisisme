@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { HexColorPicker } from "react-colorful";
 import {
   FieldKey,
@@ -80,9 +79,6 @@ export function CardBody({ field, data, update, premium = false }: Props) {
           </div>
         </div>
       );
-
-    case "photo":
-      return <PhotoField data={data} update={update} />;
 
     case "birthday":
       return (
@@ -301,47 +297,4 @@ export function CardBody({ field, data, update, premium = false }: Props) {
         />
       );
   }
-}
-
-function PhotoField({
-  data,
-  update,
-}: {
-  data: ProfileData;
-  update: Props["update"];
-}) {
-  const onFile = (file: File | undefined) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => update("photoDataUrl", reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative h-32 w-32 overflow-hidden rounded-2xl border border-border bg-bg">
-        {data.photoDataUrl ? (
-          <Image
-            src={data.photoDataUrl}
-            alt="Profile"
-            fill
-            sizes="128px"
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-4xl">📸</div>
-        )}
-      </div>
-      <label className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-sm transition hover:border-accent">
-        Upload photo
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => onFile(e.target.files?.[0])}
-        />
-      </label>
-    </div>
-  );
 }

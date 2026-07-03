@@ -51,7 +51,6 @@ export default function Home() {
     removeCustomCategory,
     enableSharing,
     disableSharing,
-    toggleShareKey,
     checkUsername,
     claimUsername,
     setPosition,
@@ -112,7 +111,7 @@ export default function Home() {
     setShowWelcome(false);
   };
 
-  // One-time nudge toward the AI Avatar feature for new users who haven't
+  // One-time nudge toward the My Avatar feature for new users who haven't
   // discovered it yet.
   useEffect(() => {
     if (!hydrated) return;
@@ -183,6 +182,11 @@ export default function Home() {
 
   const savedLabel = relTime(lastSavedAt, now);
   const hiddenSectionCount = countHiddenSections(profile);
+  // The name toggle only hides the *display* — the typed name in
+  // profile.data.name is untouched, so switching it back on restores it.
+  const displayName = profile.visibility.name
+    ? profile.data.name || "Your Name"
+    : "Who Am I?";
 
   return (
     <>
@@ -229,10 +233,7 @@ export default function Home() {
       )}
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 py-4">
-        <NameTitle
-          name={hydrated ? profile.data.name || "Your Name" : ""}
-          font={profile.data.nameFont}
-        />
+        <NameTitle name={hydrated ? displayName : ""} font={profile.data.nameFont} />
 
         {(!hydrated || switchingView) && <HudSkeleton />}
 
@@ -313,7 +314,6 @@ export default function Home() {
         onSetHandle={() => setUsernameOpen(true)}
         enableSharing={enableSharing}
         disableSharing={disableSharing}
-        toggleShareKey={toggleShareKey}
       />
 
       <UsernameModal

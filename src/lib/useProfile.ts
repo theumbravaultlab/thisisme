@@ -25,7 +25,7 @@ import {
 } from "./store";
 import { readableAccent } from "./color";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
-import { buildPublicPayload, defaultPublicKeys, generateHandle } from "./share";
+import { buildPublicPayload, generateHandle } from "./share";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "local";
 
@@ -236,9 +236,23 @@ export function useProfile() {
     });
   }, []);
 
-  const setActiveAvatar = useCallback((dataUrl: string) => {
-    setProfile((p) => ({ ...p, data: { ...p.data, photoDataUrl: dataUrl } }));
-  }, []);
+  // Persists immediately (local always, cloud right away if signed in) rather
+  // than waiting for the debounced/effect-based save below. Picking an avatar
+  // navigates straight to "/", which mounts its own fresh useProfile() there —
+  // without this, that page can read stale data before the save lands.
+  const setActiveAvatar = useCallback(
+    async (dataUrl: string | null) => {
+      const next: Profile = { ...profile, data: { ...profile.data, photoDataUrl: dataUrl } };
+      setProfile(next);
+      saveProfile(next);
+      const supabase = getSupabase();
+      if (supabase && user) {
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        await saveProfileCloud(supabase, user.id, next).catch(() => {});
+      }
+    },
+    [profile, user]
+  );
 
   const removeAvatar = useCallback((dataUrl: string) => {
     setProfile((p) => {
@@ -343,16 +357,14 @@ export function useProfile() {
   );
 
   // ---- public sharing ------------------------------------------------------
+  // Sharing has no separate curation step — buildPublicPayload (in share.ts)
+  // mirrors whatever's currently visible on the profile, live, every time the
+  // public row is written. Enabling just flips the switch on.
   const enableSharing = useCallback(() => {
-    setProfile((p) => {
-      const publicKeys = p.data.share.publicKeys.length
-        ? p.data.share.publicKeys
-        : defaultPublicKeys(p);
-      return {
-        ...p,
-        data: { ...p.data, share: { slug: p.data.username, enabled: true, publicKeys } },
-      };
-    });
+    setProfile((p) => ({
+      ...p,
+      data: { ...p.data, share: { slug: p.data.username, enabled: true } },
+    }));
   }, []);
 
   const disableSharing = useCallback(async () => {
@@ -363,15 +375,6 @@ export function useProfile() {
     const supabase = getSupabase();
     if (supabase && user) await unpublishPublicProfile(supabase, user.id).catch(() => {});
   }, [user]);
-
-  const toggleShareKey = useCallback((key: string) => {
-    setProfile((p) => {
-      const set = new Set(p.data.share.publicKeys);
-      if (set.has(key)) set.delete(key);
-      else set.add(key);
-      return { ...p, data: { ...p.data, share: { ...p.data.share, publicKeys: [...set] } } };
-    });
-  }, []);
 
   const removeCustomCategory = useCallback((id: string) => {
     setProfile((p) => ({
@@ -458,7 +461,6 @@ export function useProfile() {
     removeCustomCategory,
     enableSharing,
     disableSharing,
-    toggleShareKey,
     checkUsername,
     claimUsername,
     setPosition,

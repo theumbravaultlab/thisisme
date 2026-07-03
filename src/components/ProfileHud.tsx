@@ -214,6 +214,13 @@ export function ProfileHud({
     >
       <CosmicBackdrop />
 
+      {/* watermark — premium removes the "thisisme" branding */}
+      {profile.tier !== "premium" && (
+        <span className="pointer-events-none absolute bottom-4 left-4 z-20 select-none text-sm font-extrabold tracking-tight text-fg/70">
+          this<span className="text-accent">is</span>me
+        </span>
+      )}
+
       {/* subtle hint — sits below the figure */}
       <AnimatePresence>
         {interactive && showHint && (
@@ -301,6 +308,7 @@ export function ProfileHud({
                 rows={card.rows}
                 draggable={interactive}
                 onEdit={interactive ? () => onEditCard(card) : undefined}
+                showLabels={cardWidth === "grouped"}
               />
             </motion.div>
           );

@@ -30,6 +30,7 @@ export interface CategorySpec {
 export interface ResolvedRow {
   key: string;
   emoji: string;
+  label: string;
   text: string;
   isColor?: boolean;
 }
@@ -44,8 +45,8 @@ export interface HudCardSpec {
   editCustomId?: string; // set when this card is a single custom field
 }
 
-// name + photo are handled outside the floating cards (title + avatar).
-const HUD_EXCLUDED: FieldKey[] = ["name", "photo"];
+// name is handled outside the floating cards (the title above the avatar).
+const HUD_EXCLUDED: FieldKey[] = ["name"];
 
 // Full structure for the Customize panel — includes every row.
 export function getCategories(profile: Profile): CategorySpec[] {
@@ -103,6 +104,7 @@ function resolve(profile: Profile, row: Row): ResolvedRow {
   return {
     key: meta.key,
     emoji: meta.emoji,
+    label: meta.label,
     text: rowText(profile, row),
     isColor: row.kind === "builtin" && row.field === "favoriteColor",
   };

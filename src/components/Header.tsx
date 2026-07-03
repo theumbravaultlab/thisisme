@@ -122,7 +122,7 @@ export function Header({
               highlightAvatarLink ? "border-accent text-accent" : ""
             }`}
           >
-            ✨ AI Avatar
+            ✨ My Avatar
             {highlightAvatarLink && (
               <span className="absolute -right-1 -top-1 flex h-3 w-3">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />

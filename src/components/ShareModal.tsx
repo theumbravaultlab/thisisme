@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Profile } from "@/lib/types";
-import { getCategories } from "@/lib/hudCards";
-import { FIELD_META } from "@/lib/types";
 
 interface Props {
   open: boolean;
@@ -16,9 +14,12 @@ interface Props {
   onSetHandle: () => void;
   enableSharing: () => void;
   disableSharing: () => void;
-  toggleShareKey: (key: string) => void;
 }
 
+// Sharing mirrors your current profile exactly — whatever's visible (and
+// however it's arranged) is what gets shared, with no separate per-field
+// picker. Opening this dialog with a handle already set turns sharing on
+// automatically, so the link is ready to copy immediately.
 export function ShareModal({
   open,
   onClose,
@@ -29,7 +30,6 @@ export function ShareModal({
   onSetHandle,
   enableSharing,
   disableSharing,
-  toggleShareKey,
 }: Props) {
   const { share, username } = profile.data;
   const [copied, setCopied] = useState(false);
@@ -38,6 +38,10 @@ export function ShareModal({
     typeof window !== "undefined" && username
       ? `${window.location.origin}/p/${username}`
       : "";
+
+  useEffect(() => {
+    if (open && signedIn && username && !share.enabled) enableSharing();
+  }, [open, signedIn, username, share.enabled, enableSharing]);
 
   const copy = async () => {
     if (!shareUrl) return;
@@ -49,9 +53,6 @@ export function ShareModal({
       /* clipboard blocked — user can still select the text */
     }
   };
-
-  const publicSet = new Set(share.publicKeys);
-  const categories = getCategories(profile);
 
   return (
     <AnimatePresence>
@@ -104,27 +105,63 @@ export function ShareModal({
                     Sign in to share
                   </button>
                 </div>
+              ) : !username ? (
+                <div className="flex flex-col gap-3 text-center">
+                  <p className="text-sm text-fg-muted">
+                    Choose a handle to get your public link.
+                  </p>
+                  <button
+                    onClick={onSetHandle}
+                    className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Choose your handle
+                  </button>
+                </div>
               ) : (
                 <div className="flex flex-col gap-4">
+                  <p className="text-sm text-fg-muted">
+                    Your profile shares exactly what&apos;s currently visible on
+                    your page, arranged the same way — no separate setup.
+                  </p>
+
                   {/* handle */}
                   <div className="flex items-center justify-between rounded-xl border border-border bg-bg px-3.5 py-3 text-sm">
                     <span>
-                      Your handle:{" "}
-                      {username ? (
-                        <span className="font-semibold">@{username}</span>
-                      ) : (
-                        <span className="text-fg-muted">not set</span>
-                      )}
+                      Your handle: <span className="font-semibold">@{username}</span>
                     </span>
                     <button
                       onClick={onSetHandle}
                       className="rounded-lg border border-border px-2.5 py-1 text-xs transition hover:border-accent"
                     >
-                      {username ? "Change" : "Set handle"}
+                      Change
                     </button>
                   </div>
 
-                  {/* master toggle */}
+                  {/* link */}
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={shareUrl}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="min-w-0 flex-1 rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none"
+                    />
+                    <button
+                      onClick={copy}
+                      className="shrink-0 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                    >
+                      {copied ? "Copied!" : "Copy"}
+                    </button>
+                    <a
+                      href={shareUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 rounded-xl border border-border px-3 py-2 text-sm transition hover:border-accent"
+                    >
+                      Open
+                    </a>
+                  </div>
+
+                  {/* unpublish escape hatch */}
                   <label className="flex items-center justify-between rounded-xl border border-border bg-bg px-3.5 py-3">
                     <span className="text-sm font-medium">
                       Public profile
@@ -135,99 +172,10 @@ export function ShareModal({
                     <input
                       type="checkbox"
                       checked={share.enabled}
-                      disabled={!username}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          if (!username) onSetHandle();
-                          else enableSharing();
-                        } else {
-                          disableSharing();
-                        }
-                      }}
-                      className="h-4 w-4 accent-accent disabled:opacity-40"
+                      onChange={(e) => (e.target.checked ? enableSharing() : disableSharing())}
+                      className="h-4 w-4 accent-accent"
                     />
                   </label>
-
-                  {!username && (
-                    <p className="-mt-2 text-xs text-fg-muted">
-                      Set a handle first — it becomes your public link.
-                    </p>
-                  )}
-
-                  {share.enabled && (
-                    <>
-                      {/* link */}
-                      <div className="flex gap-2">
-                        <input
-                          readOnly
-                          value={shareUrl}
-                          onFocus={(e) => e.currentTarget.select()}
-                          className="min-w-0 flex-1 rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none"
-                        />
-                        <button
-                          onClick={copy}
-                          className="shrink-0 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-                        >
-                          {copied ? "Copied!" : "Copy"}
-                        </button>
-                        <a
-                          href={shareUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="shrink-0 rounded-xl border border-border px-3 py-2 text-sm transition hover:border-accent"
-                        >
-                          Open
-                        </a>
-                      </div>
-
-                      {/* per-field controls */}
-                      <div>
-                        <p className="mb-1 text-sm font-medium">What&apos;s visible publicly</p>
-                        <p className="mb-2 text-xs text-fg-muted">
-                          Contact info is off by default. Toggle anything on or off.
-                        </p>
-                        <div className="flex flex-col gap-3">
-                          {categories.map((cat) => {
-                            const rows = cat.rows.filter(
-                              (r) => !(r.kind === "builtin" && (r.field === "name" || r.field === "photo"))
-                            );
-                            if (rows.length === 0) return null;
-                            return (
-                              <div key={cat.key}>
-                                <p className="mb-1 text-xs font-semibold text-fg-muted">
-                                  {cat.emoji} {cat.title}
-                                </p>
-                                <div className="flex flex-col gap-1">
-                                  {rows.map((r) => {
-                                    const key = r.kind === "builtin" ? r.field : r.id;
-                                    const label =
-                                      r.kind === "builtin"
-                                        ? FIELD_META[r.field].label
-                                        : profile.data.customFields.find((f) => f.id === r.id)?.label ??
-                                          "Detail";
-                                    return (
-                                      <label
-                                        key={key}
-                                        className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm hover:bg-bg"
-                                      >
-                                        {label}
-                                        <input
-                                          type="checkbox"
-                                          checked={publicSet.has(key)}
-                                          onChange={() => toggleShareKey(key)}
-                                          className="h-4 w-4 accent-accent"
-                                        />
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </>
-                  )}
                 </div>
               )}
             </div>

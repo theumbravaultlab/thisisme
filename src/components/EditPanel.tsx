@@ -62,15 +62,13 @@ export function EditPanel({
   const categories = getCategories(profile);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [openCats, setOpenCats] = useState<Set<string>>(
-    () => new Set(categories.filter((c) => c.rows.some((r) => rowIsVisible(profile, r))).map((c) => c.key))
+    () => new Set(categories.map((c) => c.key))
   );
-  const [showHidden, setShowHidden] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!focusCategory) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenCats((s) => new Set(s).add(focusCategory));
-    setShowHidden((s) => new Set(s).add(focusCategory));
   }, [focusCategory]);
 
   useEffect(() => {
@@ -81,7 +79,6 @@ export function EditPanel({
     if (!cat) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenCats((s) => new Set(s).add(cat.key));
-    setShowHidden((s) => new Set(s).add(cat.key));
     setExpanded(focusField);
     // categories is derived each render; only react to focusField changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,6 +127,22 @@ export function EditPanel({
               Tap a section to expand. Toggle a stat to show it on your profile.
             </p>
 
+            {/* Name is pinned here, always visible and always expanded —
+                unlike every other field, there's no chevron to collapse it,
+                and its label is sized like a category title, not a detail row. */}
+            <div className="border-b border-border px-4 py-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 font-semibold">
+                  <span>{FIELD_META.name.emoji}</span>
+                  {FIELD_META.name.label}
+                </span>
+                <Switch on={profile.visibility.name} onClick={() => toggleVisibility("name")} />
+              </div>
+              <div className={profile.visibility.name ? "" : "opacity-60"}>
+                <CardBody field="name" data={profile.data} editing update={update} premium={premium} />
+              </div>
+            </div>
+
             <div className="flex-1 overflow-y-auto p-3">
               <div className="flex flex-col gap-3">
                 {categories.map((category) => (
@@ -140,12 +153,8 @@ export function EditPanel({
                     premium={premium}
                     onUpgrade={onUpgrade}
                     open={openCats.has(category.key)}
-                    hiddenShown={showHidden.has(category.key)}
                     expanded={expanded}
                     onToggleOpen={() => toggleCat(category.key)}
-                    onRevealHidden={() =>
-                      setShowHidden((s) => new Set(s).add(category.key))
-                    }
                     onToggleExpand={toggleExpand}
                     update={update}
                     toggleVisibility={toggleVisibility}
@@ -192,10 +201,8 @@ function CategorySection({
   premium,
   onUpgrade,
   open,
-  hiddenShown,
   expanded,
   onToggleOpen,
-  onRevealHidden,
   onToggleExpand,
   update,
   toggleVisibility,
@@ -210,10 +217,8 @@ function CategorySection({
   premium: boolean;
   onUpgrade: () => void;
   open: boolean;
-  hiddenShown: boolean;
   expanded: string | null;
   onToggleOpen: () => void;
-  onRevealHidden: () => void;
   onToggleExpand: (key: string) => void;
   update: <K extends keyof ProfileData>(key: K, value: ProfileData[K]) => void;
   toggleVisibility: (key: FieldKey) => void;
@@ -223,9 +228,13 @@ function CategorySection({
   updateCustomCategory: (id: string, patch: Partial<CustomCategory>) => void;
   removeCustomCategory: (id: string) => void;
 }) {
-  const used = category.rows.filter((r) => rowIsVisible(profile, r));
-  const hidden = category.rows.filter((r) => !rowIsVisible(profile, r));
-  const visibleRows = [...used, ...(hiddenShown ? hidden : [])];
+  // "name" is pinned at the top of the panel instead of living in this
+  // accordion (see EditPanel above), so exclude it here to avoid showing it twice.
+  const rows = category.rows.filter((r) => !(r.kind === "builtin" && r.field === "name"));
+  const used = rows.filter((r) => rowIsVisible(profile, r));
+  const hidden = rows.filter((r) => !rowIsVisible(profile, r));
+  // Toggled-off rows sink to the bottom instead of being hidden away.
+  const visibleRows = [...used, ...hidden];
   const customCatId = category.builtin ? null : category.key.slice("cat:".length);
 
   return (
@@ -304,19 +313,10 @@ function CategorySection({
                 )
               )}
 
-              {used.length === 0 && !hiddenShown && (
+              {used.length === 0 && (
                 <p className="px-1 py-1 text-xs text-fg-muted">
                   Nothing shown from this section yet.
                 </p>
-              )}
-
-              {hidden.length > 0 && !hiddenShown && (
-                <button
-                  onClick={onRevealHidden}
-                  className="mt-1 self-start text-xs font-medium text-accent transition hover:opacity-80"
-                >
-                  + Show {hidden.length} more
-                </button>
               )}
 
               {/* Add detail (premium) */}

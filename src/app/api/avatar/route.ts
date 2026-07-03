@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { paleTint } from "@/lib/color";
+import { rateLimit } from "@/lib/rateLimit";
+
+// Best-effort client IP. On Vercel/most proxies the client is the leftmost
+// entry in x-forwarded-for; falls back to x-real-ip.
+function clientIp(req: NextRequest): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return req.headers.get("x-real-ip") || "unknown";
+}
+
+// ~11MB decoded. Guards against giant payloads inflating memory + model cost.
+const MAX_IMAGE_CHARS = 15_000_000;
 
 // Generates an AI avatar from the user's photo in two model steps:
 //   1. Background removal (fal.ai BiRefNet, "Portrait" mode) — isolates the
@@ -115,23 +127,62 @@ async function stylize(
 }
 
 export async function POST(req: NextRequest) {
-  const { image, prompt, strength, guidanceScale, color, removeBg } = (await req.json()) as {
+  const { image, prompt, strength, guidanceScale, color, removeBg, stylize: shouldStylize } = (await req.json()) as {
     image?: string;
     prompt?: string;
     strength?: number;
     guidanceScale?: number;
     color?: string;
     removeBg?: boolean;
+    stylize?: boolean;
   };
 
   if (!image) {
     return NextResponse.json({ error: "No image provided" }, { status: 400 });
   }
 
+  if (image.length > MAX_IMAGE_CHARS) {
+    return NextResponse.json(
+      { error: "That photo is too large — please use an image under ~10MB." },
+      { status: 413 }
+    );
+  }
+
+  // Throttle the paid pipeline per IP so a runaway loop can't drain the model
+  // budget. A short burst window stops rapid-fire abuse; a daily window caps
+  // sustained use. (Per-instance — see rateLimit.ts.)
+  const ip = clientIp(req);
+  const burst = rateLimit(`avatar:burst:${ip}`, 12, 5 * 60_000);
+  if (!burst.ok) {
+    return NextResponse.json(
+      { error: "You're generating avatars too quickly — please try again in a few minutes." },
+      { status: 429, headers: { "Retry-After": String(burst.retryAfterSec) } }
+    );
+  }
+  const daily = rateLimit(`avatar:day:${ip}`, 60, 24 * 60 * 60_000);
+  if (!daily.ok) {
+    return NextResponse.json(
+      { error: "You've reached today's avatar limit — please try again tomorrow." },
+      { status: 429, headers: { "Retry-After": String(daily.retryAfterSec) } }
+    );
+  }
+
   const key = process.env.FAL_KEY;
   if (!key) {
     // Free demo path — client stylizes locally.
     return NextResponse.json({ demo: true });
+  }
+
+  // "Keep as is" — no AI restyle, just cut the person out of their background
+  // and return the clean original. Returns { demo: true } on failure so the
+  // client can fall back to the untouched photo.
+  if (shouldStylize === false) {
+    try {
+      const cutout = await removeBackground(key, image);
+      return NextResponse.json({ image: cutout });
+    } catch (e) {
+      return NextResponse.json({ demo: true, note: String(e) });
+    }
   }
 
   try {

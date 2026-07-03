@@ -23,6 +23,11 @@ export function MobileProfile({
   interactive?: boolean;
 }) {
   const visible = getHudCards(profile);
+  // The name toggle only hides the *display* — the typed name in
+  // profile.data.name is untouched, so switching it back on restores it.
+  const displayName = profile.visibility.name
+    ? profile.data.name || "Your Name"
+    : "Who Am I?";
   const heroRef = useRef<HTMLDivElement>(null);
   const [heroVisible, setHeroVisible] = useState(true);
 
@@ -59,7 +64,7 @@ export function MobileProfile({
                 />
               )}
             </div>
-            <span className="truncate text-sm font-medium">{profile.data.name}</span>
+            <span className="truncate text-sm font-medium">{displayName}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -73,6 +78,12 @@ export function MobileProfile({
         <div className="absolute inset-0">
           <Silhouette photoUrl={profile.data.photoDataUrl} />
         </div>
+        {/* watermark — premium removes the "thisisme" branding */}
+        {profile.tier !== "premium" && (
+          <span className="pointer-events-none absolute bottom-3 left-3 select-none text-sm font-extrabold tracking-tight text-fg/70">
+            this<span className="text-accent">is</span>me
+          </span>
+        )}
       </div>
 
       {interactive && (
@@ -92,11 +103,21 @@ export function MobileProfile({
               aria-label={`Edit ${card.title}`}
               className="block text-left active:scale-[0.98]"
             >
-              <CategoryCard title={card.title} emoji={card.emoji} rows={card.rows} />
+              <CategoryCard
+                title={card.title}
+                emoji={card.emoji}
+                rows={card.rows}
+                showLabels={profile.cardView === "grouped"}
+              />
             </motion.button>
           ) : (
             <div key={card.key}>
-              <CategoryCard title={card.title} emoji={card.emoji} rows={card.rows} />
+              <CategoryCard
+                title={card.title}
+                emoji={card.emoji}
+                rows={card.rows}
+                showLabels={profile.cardView === "grouped"}
+              />
             </div>
           )
         )}

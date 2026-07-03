@@ -5,7 +5,8 @@ export const alt = "thisisme — a profile that shows the real you";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Branded social-share card. (Per-profile OG images come with Phase 3 sharing.)
+// Branded social-share card for the site root. (Per-profile OG cards live in
+// src/app/p/[slug]/opengraph-image.tsx.)
 export default function OgImage() {
   return new ImageResponse(
     (

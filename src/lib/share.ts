@@ -6,9 +6,6 @@
 import { Profile, ProfileData, FieldKey } from "./types";
 import { DEFAULT_PROFILE } from "./store";
 
-// Sensitive by default — excluded from a brand-new public profile.
-export const CONTACT_FIELDS: FieldKey[] = ["phone", "email", "instagram", "address"];
-
 // Built-in stat fields that can be shared (everything except the identity
 // bits handled separately).
 const SHAREABLE_SIMPLE: (keyof ProfileData)[] = [
@@ -42,38 +39,44 @@ export function generateHandle(name: string): string {
   return `${base}_${rand}`.slice(0, 20);
 }
 
-// Sensible starting set: everything currently visible on the board except
-// contact info, plus visible custom fields.
-export function defaultPublicKeys(profile: Profile): string[] {
+// Sharing has no separate curation step — whatever is currently visible on
+// the owner's own profile (built-in stats + custom fields), exactly as
+// configured right now, is what gets shared. Live, not a one-time snapshot:
+// this is recomputed from the current profile every time the public payload
+// is rebuilt, so any visibility change syncs to the public page automatically.
+function shareableKeys(profile: Profile): Set<string> {
   const builtin = (Object.keys(profile.visibility) as FieldKey[]).filter(
-    (f) =>
-      f !== "name" &&
-      f !== "photo" &&
-      profile.visibility[f] &&
-      !CONTACT_FIELDS.includes(f)
+    (f) => f !== "name" && profile.visibility[f]
   );
   const custom = profile.data.customFields.filter((c) => c.visible).map((c) => c.id);
-  return [...builtin, ...custom];
+  return new Set([...builtin, ...custom]);
 }
 
-// Build the public-safe Profile from the owner's choices.
+// Build the public-safe Profile from the owner's current configuration.
 export function buildPublicPayload(profile: Profile): Profile {
   const src = profile.data;
-  const keys = new Set(profile.data.share.publicKeys);
+  const keys = shareableKeys(profile);
 
-  const data: ProfileData = {
-    ...DEFAULT_PROFILE.data,
-    // identity / branding is always part of a public page
-    name: src.name,
-    nameFont: src.nameFont,
-    photoDataUrl: src.photoDataUrl,
-    favoriteColor: src.favoriteColor,
-    // never expose the private library or share settings publicly
-    avatars: [],
-    customFields: [],
-    customCategories: [],
-    share: { slug: "", enabled: false, publicKeys: [] },
-  };
+  // Start from defaults (for structural fields like ageDisplayMode), then WIPE
+  // every shareable value. This makes the payload leak-proof by construction:
+  // anything not explicitly re-added below is blank — not even the demo
+  // placeholder text in DEFAULT_PROFILE can surface on a public page.
+  const data: ProfileData = { ...DEFAULT_PROFILE.data };
+  for (const k of SHAREABLE_SIMPLE) {
+    (data[k] as unknown) = Array.isArray(data[k]) ? [] : "";
+  }
+  data.birthYear = null;
+
+  // identity / branding is always part of a public page
+  data.name = src.name;
+  data.nameFont = src.nameFont;
+  data.photoDataUrl = src.photoDataUrl;
+  data.favoriteColor = src.favoriteColor;
+  // never expose the private library or share settings publicly
+  data.avatars = [];
+  data.customFields = [];
+  data.customCategories = [];
+  data.share = { slug: "", enabled: false };
 
   if (keys.has("age")) {
     data.birthYear = src.birthYear;

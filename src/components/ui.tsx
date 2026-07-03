@@ -21,6 +21,21 @@ export function TextInput({
   );
 }
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+const selectClass =
+  "w-full appearance-none rounded-lg border border-border bg-bg px-2.5 py-2 text-sm text-fg outline-none focus:border-accent";
+
+// Day / Month / Year selects rather than a single native date input — on
+// mobile, a <select> already opens as a spinning wheel (iOS) or a picker
+// dialog (Android), which is the best "wheel" UX without a custom widget.
 export function DateInput({
   value,
   onChange,
@@ -28,13 +43,77 @@ export function DateInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const [yStr, mStr, dStr] = value ? value.split("-") : ["", "", ""];
+  const year = yStr ? Number(yStr) : undefined;
+  const month = mStr ? Number(mStr) : undefined;
+  const day = dStr ? Number(dStr) : undefined;
+
+  const thisYear = new Date().getFullYear();
+  const years = Array.from({ length: 101 }, (_, i) => thisYear - i);
+  const maxDay = daysInMonth(year ?? thisYear, month ?? 12);
+  const days = Array.from({ length: maxDay }, (_, i) => i + 1);
+
+  const commit = (nextDay?: number, nextMonth?: number, nextYear?: number) => {
+    if (!nextDay || !nextMonth || !nextYear) return;
+    const clampedDay = Math.min(nextDay, daysInMonth(nextYear, nextMonth));
+    const pad = (n: number) => String(n).padStart(2, "0");
+    onChange(`${nextYear}-${pad(nextMonth)}-${pad(clampedDay)}`);
+  };
+
   return (
-    <input
-      type="date"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-    />
+    <div className="grid grid-cols-3 gap-2">
+      <div className="relative">
+        <select
+          value={day ?? ""}
+          onChange={(e) => commit(Number(e.target.value), month, year)}
+          className={selectClass}
+          aria-label="Day"
+        >
+          <option value="" disabled>
+            Day
+          </option>
+          {days.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="relative">
+        <select
+          value={month ?? ""}
+          onChange={(e) => commit(day, Number(e.target.value), year)}
+          className={selectClass}
+          aria-label="Month"
+        >
+          <option value="" disabled>
+            Month
+          </option>
+          {MONTHS.map((label, i) => (
+            <option key={label} value={i + 1}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="relative">
+        <select
+          value={year ?? ""}
+          onChange={(e) => commit(day, month, Number(e.target.value))}
+          className={selectClass}
+          aria-label="Year"
+        >
+          <option value="" disabled>
+            Year
+          </option>
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }
 

@@ -59,12 +59,11 @@ export const DEFAULT_PROFILE: Profile = {
     avatars: [],
     customFields: [],
     customCategories: [],
-    share: { slug: "", enabled: false, publicKeys: [] },
+    share: { slug: "", enabled: false },
   },
   positions: {},
   visibility: {
     name: true,
-    photo: true,
     age: true,
     birthday: true,
     height: true,
@@ -112,9 +111,26 @@ export function loadProfile(): Profile {
   }
 }
 
+function isQuotaError(e: unknown): boolean {
+  return e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22);
+}
+
 export function saveProfile(profile: Profile): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+  let toSave = profile;
+  // The avatar library is the only thing that grows unbounded. If we're over
+  // quota (e.g. a browser with a smaller-than-usual localStorage limit), drop
+  // the oldest saved avatars one at a time and retry rather than throwing and
+  // crashing the app — losing an old library entry is far better than that.
+  while (true) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      return;
+    } catch (e) {
+      if (!isQuotaError(e) || toSave.data.avatars.length === 0) return;
+      toSave = { ...toSave, data: { ...toSave.data, avatars: toSave.data.avatars.slice(0, -1) } };
+    }
+  }
 }
 
 // ---- Cloud (Supabase) --------------------------------------------------------

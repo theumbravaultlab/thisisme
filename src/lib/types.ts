@@ -88,13 +88,10 @@ export interface ProfileData {
 export interface ShareSettings {
   slug: string; // "" until first published
   enabled: boolean; // is the public link live
-  // Field keys (built-in) + custom field ids that appear on the public page.
-  publicKeys: string[];
 }
 
 export interface FieldVisibility {
   name: boolean;
-  photo: boolean;
   age: boolean;
   birthday: boolean;
   height: boolean;
@@ -137,12 +134,11 @@ export interface Profile {
 
 export const FIELD_META: Record<FieldKey, { label: string; emoji: string }> = {
   name: { label: "Name", emoji: "👋" },
-  photo: { label: "Photo", emoji: "📸" },
   age: { label: "Age", emoji: "🎂" },
   birthday: { label: "Birthday", emoji: "🎈" },
   height: { label: "Height", emoji: "📏" },
   favoriteColor: { label: "Favorite Color", emoji: "🎨" },
-  mindset: { label: "Mindset", emoji: "🧠" },
+  mindset: { label: "Words I Live By", emoji: "🧭" },
   mbti: { label: "Personality Type", emoji: "🧩" },
   favoriteAnimal: { label: "Favorite Animal", emoji: "🦊" },
   relationshipStatus: { label: "Relationship", emoji: "🤝" },
@@ -165,9 +161,9 @@ export const FIELD_META: Record<FieldKey, { label: string; emoji: string }> = {
 // (as of the consolidated HUD) rendered as one combined card per category.
 export const CATEGORIES: { title: string; emoji: string; fields: FieldKey[] }[] = [
   {
-    title: "Basics",
+    title: "Identity",
     emoji: "🪪",
-    fields: ["name", "photo", "age", "birthday", "height", "favoriteColor"],
+    fields: ["name", "age", "birthday", "height", "favoriteColor"],
   },
   {
     title: "Personality",
