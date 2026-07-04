@@ -204,9 +204,12 @@ export function Header({
                 </button>
                 {cloudEnabled &&
                   (userEmail ? (
-                    <button onClick={() => { onSignOut(); closeMenu(); }} className={menuItem}>
-                      🚪 Sign out
-                      <span className="ml-auto max-w-[7rem] truncate text-xs text-fg-muted">{userEmail}</span>
+                    <button onClick={() => { onSignOut(); closeMenu(); }} className={`${menuItem} items-start`}>
+                      <span className="leading-6">🚪</span>
+                      <span className="flex min-w-0 flex-col">
+                        <span>Sign out</span>
+                        <span className="truncate text-xs text-fg-muted">{userEmail}</span>
+                      </span>
                     </button>
                   ) : (
                     <button onClick={() => { onSignIn(); closeMenu(); }} className={menuItem}>

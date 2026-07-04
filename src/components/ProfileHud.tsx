@@ -20,7 +20,8 @@ interface Geom {
   anchorY: number;
 }
 const DESKTOP_GEOM: Geom = { cx: 50, cy: 42, ringX: 40, ringY: 36, anchorX: 23, anchorY: 32 };
-const MOBILE_GEOM: Geom = { cx: 50, cy: 40, ringX: 27, ringY: 33, anchorX: 17, anchorY: 27 };
+// Phone: avatar is small + centered, so cards ring it on a tall stage.
+const MOBILE_GEOM: Geom = { cx: 50, cy: 50, ringX: 31, ringY: 40, anchorX: 13, anchorY: 13 };
 
 // Fallback card half-size (stage %) used before a card's real size has been
 // measured. Real measured sizes (see useCardSizes below) take over once known,
@@ -225,60 +226,15 @@ export function ProfileHud({
   };
 
   const cardWidth: CardView = profile.cardView;
-
-  // Phones: a floating HUD of content-rich cards can't fit around the avatar
-  // without overlap/clipping, so use a prominent avatar hero + a 2-column
-  // masonry of cards. Reads as "the avatar with everything around it" while
-  // staying legible and side-scroll-free.
-  if (mobile) {
-    return (
-      <div className="w-full">
-        <div className="relative mx-auto h-[42vh] min-h-[300px] w-full overflow-hidden rounded-3xl border border-border bg-bg-elev/20">
-          <CosmicBackdrop />
-          <div className="absolute inset-0">
-            <Silhouette photoUrl={profile.data.photoDataUrl} />
-          </div>
-          {profile.tier !== "premium" && (
-            <span className="pointer-events-none absolute bottom-3 left-3 select-none text-sm font-extrabold tracking-tight text-fg/70">
-              this<span className="text-accent">is</span>me
-            </span>
-          )}
-        </div>
-
-        <div className="mt-3 columns-2 [column-gap:0.6rem]">
-          {visible.map((card) => {
-            const inner = (
-              <CategoryCard
-                title={card.title}
-                emoji={card.emoji}
-                rows={card.rows}
-                showLabels={cardWidth === "grouped"}
-              />
-            );
-            return interactive ? (
-              <button
-                key={card.key}
-                onClick={() => onEditCard(card)}
-                aria-label={`Edit ${card.title}`}
-                className="mb-2.5 block w-full break-inside-avoid text-left transition active:scale-[0.98]"
-              >
-                {inner}
-              </button>
-            ) : (
-              <div key={card.key} className="mb-2.5 break-inside-avoid">
-                {inner}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
+  // On phones the stage grows with the number of cards so the small avatar and
+  // all its surrounding cards fit without overlap (scrolls vertically if needed).
+  const mobileStageH = Math.max(560, 200 + visible.length * 150);
 
   return (
     <div
       ref={stageRef}
-      className="relative mx-auto h-[78vh] min-h-[520px] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-border bg-bg-elev/20 sm:h-[80vh] sm:min-h-[600px]"
+      className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-[2rem] border border-border bg-bg-elev/20 sm:h-[80vh] sm:min-h-[600px]"
+      style={mobile ? { height: mobileStageH } : undefined}
     >
       <CosmicBackdrop />
 
@@ -291,7 +247,7 @@ export function ProfileHud({
 
       {/* subtle hint — sits below the figure */}
       <AnimatePresence>
-        {interactive && showHint && (
+        {interactive && !mobile && showHint && (
           <motion.button
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -304,8 +260,14 @@ export function ProfileHud({
         )}
       </AnimatePresence>
 
-      {/* central figure */}
-      <div className="absolute inset-0 z-10">
+      {/* central figure — small + centered on phones so cards ring it */}
+      <div
+        className={
+          mobile
+            ? "absolute left-1/2 top-1/2 z-10 aspect-square h-[190px] -translate-x-1/2 -translate-y-1/2"
+            : "absolute inset-0 z-10"
+        }
+      >
         <Silhouette photoUrl={profile.data.photoDataUrl} />
       </div>
 
@@ -351,6 +313,7 @@ export function ProfileHud({
               onDoubleClick={
                 canDrag && clearPosition ? () => clearPosition(card.key) : undefined
               }
+              onClick={mobile && interactive ? () => onEditCard(card) : undefined}
               tabIndex={interactive ? 0 : -1}
               role={interactive ? "button" : undefined}
               aria-label={
@@ -360,7 +323,7 @@ export function ProfileHud({
               }
               onKeyDown={(e) => onCardKey(card, i, e)}
               className={`group absolute z-20 -translate-x-1/2 -translate-y-1/2 touch-none transition-[left,top] duration-500 ease-out ${
-                mobile ? "w-36" : cardWidth === "detailed" ? "w-48" : "w-60"
+                mobile ? "w-32" : cardWidth === "detailed" ? "w-48" : "w-60"
               } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
               style={{ left: `${p.x}%`, top: `${p.y}%` }}
               initial={{ opacity: 0, scale: 0.7 }}
@@ -374,9 +337,10 @@ export function ProfileHud({
                 title={card.title}
                 emoji={card.emoji}
                 rows={card.rows}
-                draggable={interactive}
-                onEdit={interactive ? () => onEditCard(card) : undefined}
+                draggable={canDrag}
+                onEdit={interactive && !mobile ? () => onEditCard(card) : undefined}
                 showLabels={cardWidth === "grouped"}
+                compact={mobile}
               />
             </motion.div>
           );
