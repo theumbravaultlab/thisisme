@@ -226,6 +226,55 @@ export function ProfileHud({
 
   const cardWidth: CardView = profile.cardView;
 
+  // Phones: a floating HUD of content-rich cards can't fit around the avatar
+  // without overlap/clipping, so use a prominent avatar hero + a 2-column
+  // masonry of cards. Reads as "the avatar with everything around it" while
+  // staying legible and side-scroll-free.
+  if (mobile) {
+    return (
+      <div className="w-full">
+        <div className="relative mx-auto h-[42vh] min-h-[300px] w-full overflow-hidden rounded-3xl border border-border bg-bg-elev/20">
+          <CosmicBackdrop />
+          <div className="absolute inset-0">
+            <Silhouette photoUrl={profile.data.photoDataUrl} />
+          </div>
+          {profile.tier !== "premium" && (
+            <span className="pointer-events-none absolute bottom-3 left-3 select-none text-sm font-extrabold tracking-tight text-fg/70">
+              this<span className="text-accent">is</span>me
+            </span>
+          )}
+        </div>
+
+        <div className="mt-3 columns-2 [column-gap:0.6rem]">
+          {visible.map((card) => {
+            const inner = (
+              <CategoryCard
+                title={card.title}
+                emoji={card.emoji}
+                rows={card.rows}
+                showLabels={cardWidth === "grouped"}
+              />
+            );
+            return interactive ? (
+              <button
+                key={card.key}
+                onClick={() => onEditCard(card)}
+                aria-label={`Edit ${card.title}`}
+                className="mb-2.5 block w-full break-inside-avoid text-left transition active:scale-[0.98]"
+              >
+                {inner}
+              </button>
+            ) : (
+              <div key={card.key} className="mb-2.5 break-inside-avoid">
+                {inner}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={stageRef}
