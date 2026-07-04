@@ -70,29 +70,30 @@ export function CardBody({ field, data, update, premium = false }: Props) {
             onChange={(v) => update("name", v)}
             placeholder="Preferred name"
           />
-          <div>
-            <label className="mb-1 block text-xs text-fg-muted">Name font</label>
-            <div className="grid grid-cols-2 gap-2">
-              {FONT_OPTIONS.map((f) => {
-                const locked = f.premium && !premium;
-                return (
-                  <button
-                    key={f.key}
-                    onClick={() => !locked && update("nameFont", f.key)}
-                    disabled={locked}
-                    title={locked ? "Premium font" : undefined}
-                    style={{ fontFamily: fontVar(f.key) }}
-                    className={`flex items-center justify-center gap-1 rounded-lg border px-3 py-2 text-base transition ${
-                      data.nameFont === f.key
-                        ? "border-accent bg-accent/15 text-fg"
-                        : "border-border text-fg-muted"
-                    } ${locked ? "cursor-not-allowed opacity-50" : ""}`}
-                  >
-                    {f.label}
-                    {locked && <span className="text-xs">🔒</span>}
-                  </button>
-                );
-              })}
+          {/* Font is a compact dropdown so the name section stays small. */}
+          <div className="flex items-center gap-2">
+            <label className="shrink-0 text-xs text-fg-muted">Font</label>
+            <div className="relative flex-1">
+              <select
+                value={data.nameFont}
+                onChange={(e) => update("nameFont", e.target.value)}
+                style={{ fontFamily: fontVar(data.nameFont) }}
+                className="w-full appearance-none rounded-lg border border-border bg-bg px-3 py-2 pr-8 text-sm text-fg outline-none focus:border-accent"
+                aria-label="Name font"
+              >
+                {FONT_OPTIONS.map((f) => {
+                  const locked = f.premium && !premium;
+                  return (
+                    <option key={f.key} value={f.key} disabled={locked}>
+                      {f.label}
+                      {locked ? " 🔒 Premium" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-fg-muted">
+                ▾
+              </span>
             </div>
           </div>
         </div>
