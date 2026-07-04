@@ -340,6 +340,7 @@ function CategorySection({
                         toggleVisibility(row.field)
                       )
                     }
+                    onUpgrade={onUpgrade}
                     data={profile.data}
                     update={update}
                   />
@@ -393,6 +394,7 @@ function BuiltinRow({
   premium,
   onToggleExpand,
   onToggleVis,
+  onUpgrade,
   data,
   update,
 }: {
@@ -402,9 +404,12 @@ function BuiltinRow({
   premium: boolean;
   onToggleExpand: () => void;
   onToggleVis: () => void;
+  onUpgrade: () => void;
   data: ProfileData;
   update: <K extends keyof ProfileData>(key: K, value: ProfileData[K]) => void;
 }) {
+  // Some built-in fields (zodiac, pronouns) are premium — locked until upgrade.
+  const locked = Boolean(FIELD_META[field].premium) && !premium;
   return (
     <div className={`overflow-hidden rounded-xl border border-border bg-bg-elev transition ${on ? "" : "opacity-60"}`}>
       <div className="flex items-center justify-between gap-2 px-3 py-2.5">
@@ -414,9 +419,25 @@ function BuiltinRow({
         >
           <span>{FIELD_META[field].emoji}</span>
           {FIELD_META[field].label}
+          {FIELD_META[field].premium && (
+            <span className="rounded-full bg-amber-400/15 px-1.5 text-[10px] font-semibold text-amber-500">
+              Premium
+            </span>
+          )}
           <span className="text-fg-muted">{expanded ? "▴" : "▾"}</span>
         </button>
-        <Switch on={on} onClick={onToggleVis} />
+        {locked ? (
+          <button
+            onClick={onUpgrade}
+            aria-label="Unlock with Premium"
+            title="Unlock with Premium"
+            className="shrink-0 rounded-full border border-amber-400/50 px-2 py-1 text-xs text-amber-500 transition hover:bg-amber-400/10"
+          >
+            🔒
+          </button>
+        ) : (
+          <Switch on={on} onClick={onToggleVis} />
+        )}
       </div>
 
       <AnimatePresence initial={false}>

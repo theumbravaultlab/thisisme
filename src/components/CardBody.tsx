@@ -4,13 +4,17 @@ import { HexColorPicker } from "react-colorful";
 import {
   FieldKey,
   ProfileData,
+  FIELD_META,
   RELATIONSHIP_OPTIONS,
   RELIGION_OPTIONS,
-  MBTI_OPTIONS,
   SPIRIT_ANIMAL_OPTIONS,
   SEASON_OPTIONS,
+  LOVE_LANGUAGE_OPTIONS,
+  ENNEAGRAM_OPTIONS,
+  PRONOUN_OPTIONS,
   FONT_OPTIONS,
   fontVar,
+  zodiacFromBirthday,
 } from "@/lib/types";
 import { DateInput, ListEditor, Select, Slider, TextInput } from "./ui";
 
@@ -39,6 +43,14 @@ function formatHeight(cm: number): string {
   const ft = Math.floor(totalIn / 12);
   const inch = Math.round(totalIn - ft * 12);
   return `${ft}'${inch}" · ${cm} cm`;
+}
+
+function introExtroLabel(v: number): string {
+  if (v <= 20) return "Introvert";
+  if (v < 45) return "Introvert-leaning";
+  if (v <= 55) return "Ambivert";
+  if (v < 80) return "Extrovert-leaning";
+  return "Extrovert";
 }
 
 // CardBody is rendered in edit mode inside the Customize panel.
@@ -81,12 +93,22 @@ export function CardBody({ field, data, update, premium = false }: Props) {
       );
 
     case "birthday":
+      return <DateInput value={data.birthday} onChange={(v) => update("birthday", v)} />;
+
+    case "zodiac": {
+      const sign = zodiacFromBirthday(data.birthday);
       return (
-        <DateInput
-          value={data.birthday}
-          onChange={(v) => update("birthday", v)}
-        />
+        <div className="rounded-lg border border-border bg-bg px-3 py-2 text-sm">
+          {sign ? (
+            <span>
+              {sign} <span className="text-fg-muted">· auto-set from your birthday</span>
+            </span>
+          ) : (
+            <span className="text-fg-muted">Set your birthday to reveal your sign.</span>
+          )}
+        </div>
       );
+    }
 
     case "age":
       return (
@@ -139,12 +161,24 @@ export function CardBody({ field, data, update, premium = false }: Props) {
         </div>
       );
 
-    case "mindset":
+    case "pronouns":
       return (
-        <TextInput
-          value={data.mindset}
-          onChange={(v) => update("mindset", v)}
-          placeholder="Focused. Adaptive. Relentless."
+        <Select
+          value={data.pronouns}
+          onChange={(v) => update("pronouns", v)}
+          options={PRONOUN_OPTIONS}
+          allowCustom={false}
+        />
+      );
+
+    case "introExtro":
+      return (
+        <Slider
+          min={0}
+          max={100}
+          value={data.introExtro}
+          onChange={(v) => update("introExtro", v)}
+          format={introExtroLabel}
         />
       );
 
@@ -158,49 +192,32 @@ export function CardBody({ field, data, update, premium = false }: Props) {
         />
       );
 
+    case "loveLanguage":
+      return (
+        <Select
+          value={data.loveLanguage}
+          onChange={(v) => update("loveLanguage", v)}
+          options={LOVE_LANGUAGE_OPTIONS}
+          allowCustom={false}
+        />
+      );
+
+    case "enneagram":
+      return (
+        <Select
+          value={data.enneagram}
+          onChange={(v) => update("enneagram", v)}
+          options={ENNEAGRAM_OPTIONS}
+          allowCustom={false}
+        />
+      );
+
     case "favoriteSeason":
       return (
         <Select
           value={data.favoriteSeason}
           onChange={(v) => update("favoriteSeason", v)}
           options={SEASON_OPTIONS}
-          allowCustom={false}
-        />
-      );
-
-    case "favoriteDrink":
-      return (
-        <TextInput
-          value={data.favoriteDrink}
-          onChange={(v) => update("favoriteDrink", v)}
-          placeholder="e.g. Iced oat latte"
-        />
-      );
-
-    case "movieSnack":
-      return (
-        <TextInput
-          value={data.movieSnack}
-          onChange={(v) => update("movieSnack", v)}
-          placeholder="e.g. Buttered popcorn"
-        />
-      );
-
-    case "dreamDestination":
-      return (
-        <TextInput
-          value={data.dreamDestination}
-          onChange={(v) => update("dreamDestination", v)}
-          placeholder="Where do you dream of going?"
-        />
-      );
-
-    case "mbti":
-      return (
-        <Select
-          value={data.mbti}
-          onChange={(v) => update("mbti", v)}
-          options={MBTI_OPTIONS}
           allowCustom={false}
         />
       );
@@ -230,16 +247,16 @@ export function CardBody({ field, data, update, premium = false }: Props) {
         <ListEditor
           items={data.achievements}
           onChange={(v) => update("achievements", v)}
-          placeholder="Add an achievement"
+          placeholder="Something you're proud of"
         />
       );
 
-    case "moviesAndShows":
+    case "bucketList":
       return (
         <ListEditor
-          items={data.moviesAndShows}
-          onChange={(v) => update("moviesAndShows", v)}
-          placeholder="Add a movie or show"
+          items={data.bucketList}
+          onChange={(v) => update("bucketList", v)}
+          placeholder="Add a bucket-list item"
         />
       );
 
@@ -261,40 +278,17 @@ export function CardBody({ field, data, update, premium = false }: Props) {
         />
       );
 
-    case "phone":
+    default: {
+      // Every remaining field is a plain single-line text value.
+      const k = field as keyof ProfileData;
+      const val = (data as unknown as Record<string, unknown>)[k];
       return (
         <TextInput
-          value={data.phone}
-          onChange={(v) => update("phone", v)}
-          placeholder="e.g. (555) 123-4567"
+          value={typeof val === "string" ? val : ""}
+          onChange={(v) => update(k, v as ProfileData[typeof k])}
+          placeholder={FIELD_META[field].label}
         />
       );
-
-    case "email":
-      return (
-        <TextInput
-          value={data.email}
-          onChange={(v) => update("email", v)}
-          placeholder="you@email.com"
-        />
-      );
-
-    case "instagram":
-      return (
-        <TextInput
-          value={data.instagram}
-          onChange={(v) => update("instagram", v)}
-          placeholder="@handle"
-        />
-      );
-
-    case "address":
-      return (
-        <TextInput
-          value={data.address}
-          onChange={(v) => update("address", v)}
-          placeholder="City, State"
-        />
-      );
+    }
   }
 }

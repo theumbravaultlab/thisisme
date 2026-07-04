@@ -11,24 +11,49 @@ import { DEFAULT_PROFILE } from "./store";
 const SHAREABLE_SIMPLE: (keyof ProfileData)[] = [
   "birthday",
   "height",
-  "favoriteColor",
+  "pronouns",
+  "basedIn",
+  "languages",
+  "whatIDo",
   "mindset",
-  "mbti",
   "favoriteAnimal",
+  "loveLanguage",
+  "enneagram",
+  "toxicTrait",
+  "romanEmpire",
+  "greenFlag",
+  "redFlag",
+  "hottestTake",
   "relationshipStatus",
   "religion",
   "achievements",
-  "moviesAndShows",
+  "currentlyObsessed",
+  "pets",
+  "bucketList",
+  "bornIn",
+  "education",
+  "cause",
+  "comfortShow",
   "spotifyTopSongs",
   "hobbies",
-  "dreamDestination",
+  "favoriteFood",
+  "favoriteBook",
+  "guiltyPleasure",
+  "favoriteGame",
+  "favoriteSportsTeam",
   "favoriteDrink",
-  "movieSnack",
   "favoriteSeason",
   "phone",
   "email",
   "instagram",
-  "address",
+  "tiktok",
+  "snapchat",
+  "twitter",
+  "linkedin",
+  "youtube",
+  "twitch",
+  "discord",
+  "website",
 ];
 
 // A default handle from the user's name + a short unique suffix, valid against
@@ -82,6 +107,11 @@ export function buildPublicPayload(profile: Profile): Profile {
     data.birthYear = src.birthYear;
     data.ageDisplayMode = src.ageDisplayMode;
   }
+  // Zodiac is auto-derived from the birthday, so carry the birthday when the
+  // zodiac card is shared (even if the birthday card itself isn't).
+  if (keys.has("zodiac")) data.birthday = src.birthday;
+  // Intro/Extro is numeric — copy it only when shared (default otherwise).
+  data.introExtro = keys.has("introExtro") ? src.introExtro : DEFAULT_PROFILE.data.introExtro;
   for (const k of SHAREABLE_SIMPLE) {
     if (keys.has(k)) data[k] = src[k] as never;
   }

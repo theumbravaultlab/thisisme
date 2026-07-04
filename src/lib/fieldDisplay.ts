@@ -1,7 +1,7 @@
 // Compact single-line text for a field, used inside consolidated category
 // cards (as opposed to CardBody's full editors or the old big per-field HUD).
 
-import { FieldKey, ProfileData } from "./types";
+import { FieldKey, ProfileData, zodiacFromBirthday } from "./types";
 import { formatAge } from "./store";
 
 function formatBirthday(iso: string): string {
@@ -15,51 +15,36 @@ function formatBirthday(iso: string): string {
   return `${months[m - 1]} ${d}`;
 }
 
+function introExtroLabel(v: number): string {
+  if (v <= 20) return "Introvert";
+  if (v < 45) return "Introvert-leaning";
+  if (v <= 55) return "Ambivert";
+  if (v < 80) return "Extrovert-leaning";
+  return "Extrovert";
+}
+
 export function fieldToText(field: FieldKey, data: ProfileData): string {
   switch (field) {
     case "age":
       return formatAge(data.birthYear, data.ageDisplayMode);
     case "birthday":
       return formatBirthday(data.birthday);
-    case "height":
-      return data.height;
-    case "favoriteColor":
-      return data.favoriteColor;
-    case "mindset":
-      return data.mindset;
-    case "mbti":
-      return data.mbti;
-    case "favoriteAnimal":
-      return data.favoriteAnimal;
-    case "relationshipStatus":
-      return data.relationshipStatus;
-    case "religion":
-      return data.religion;
+    case "zodiac":
+      return zodiacFromBirthday(data.birthday); // auto-derived from birthday
+    case "introExtro":
+      return introExtroLabel(data.introExtro);
     case "achievements":
       return data.achievements.join(" · ");
-    case "moviesAndShows":
-      return data.moviesAndShows.join(" · ");
+    case "bucketList":
+      return data.bucketList.join(" · ");
     case "spotifyTopSongs":
       return data.spotifyTopSongs.join(" · ");
     case "hobbies":
       return data.hobbies.join(" · ");
-    case "dreamDestination":
-      return data.dreamDestination;
-    case "favoriteDrink":
-      return data.favoriteDrink;
-    case "movieSnack":
-      return data.movieSnack;
-    case "favoriteSeason":
-      return data.favoriteSeason;
-    case "phone":
-      return data.phone;
-    case "email":
-      return data.email;
-    case "instagram":
-      return data.instagram;
-    case "address":
-      return data.address;
-    default:
-      return "";
+    default: {
+      // Every remaining field is a plain string value on ProfileData.
+      const v = (data as unknown as Record<string, unknown>)[field];
+      return typeof v === "string" ? v : "";
+    }
   }
 }
