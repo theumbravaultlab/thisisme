@@ -31,6 +31,7 @@ interface Props {
   addCustomCategory: () => string;
   updateCustomCategory: (id: string, patch: Partial<CustomCategory>) => void;
   removeCustomCategory: (id: string) => void;
+  onOpenVersions: () => void;
   focusCategory: string | null;
   focusField?: FieldKey | null;
 }
@@ -59,6 +60,7 @@ export function EditPanel({
   addCustomCategory,
   updateCustomCategory,
   removeCustomCategory,
+  onOpenVersions,
   focusCategory,
   focusField,
 }: Props) {
@@ -235,6 +237,19 @@ export function EditPanel({
                     onUpgrade={onUpgrade}
                   />
                 )}
+
+                {/* Version history (premium) */}
+                <button
+                  onClick={onOpenVersions}
+                  className="mt-1 flex items-center justify-center gap-1.5 rounded-2xl border border-border py-3 text-sm font-medium text-fg-muted transition hover:border-accent hover:text-accent"
+                >
+                  🕒 Version history
+                  {!premium && (
+                    <span className="rounded-full bg-amber-400/15 px-1.5 text-[10px] font-semibold text-amber-500">
+                      Premium
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
           </motion.aside>

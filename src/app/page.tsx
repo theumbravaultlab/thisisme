@@ -8,6 +8,7 @@ import { NameTitle } from "@/components/NameTitle";
 import { AuthModal } from "@/components/AuthModal";
 import { ShareModal } from "@/components/ShareModal";
 import { UsernameModal } from "@/components/UsernameModal";
+import { VersionHistoryModal } from "@/components/VersionHistoryModal";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { HudSkeleton } from "@/components/HudSkeleton";
 import { Welcome } from "@/components/Welcome";
@@ -44,6 +45,10 @@ export default function Home() {
     toggleCardView,
     refreshEntitlement,
     startCheckout,
+    saveSnapshot,
+    listSnapshots,
+    restoreSnapshot,
+    deleteSnapshot,
     addCustomField,
     updateCustomField,
     removeCustomField,
@@ -69,6 +74,7 @@ export default function Home() {
   const [authOpen, setAuthOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [usernameOpen, setUsernameOpen] = useState(false);
+  const [versionOpen, setVersionOpen] = useState(false);
   const [focusCategory, setFocusCategory] = useState<string | null>(null);
   const [focusField, setFocusField] = useState<FieldKey | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -260,7 +266,17 @@ export default function Home() {
       )}
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 py-2 sm:py-4">
-        <NameTitle name={hydrated ? displayName : ""} font={profile.data.nameFont} />
+        <NameTitle
+          name={hydrated ? displayName : ""}
+          font={profile.data.nameFont}
+          updatedAt={
+            hydrated
+              ? lastSavedAt
+                ? new Date(lastSavedAt).toISOString()
+                : profile.data.updatedAt
+              : ""
+          }
+        />
 
         {(!hydrated || switchingView) && <HudSkeleton />}
 
@@ -308,8 +324,20 @@ export default function Home() {
         addCustomCategory={addCustomCategory}
         updateCustomCategory={updateCustomCategory}
         removeCustomCategory={removeCustomCategory}
+        onOpenVersions={() => setVersionOpen(true)}
         focusCategory={focusCategory}
         focusField={focusField}
+      />
+
+      <VersionHistoryModal
+        open={versionOpen}
+        onClose={() => setVersionOpen(false)}
+        premium={premium}
+        onUpgrade={upgrade}
+        saveSnapshot={saveSnapshot}
+        listSnapshots={listSnapshots}
+        restoreSnapshot={restoreSnapshot}
+        deleteSnapshot={deleteSnapshot}
       />
 
       <AuthModal

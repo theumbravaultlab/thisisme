@@ -178,14 +178,20 @@ export function ProfileHud({
 
   const visible = getHudCards(profile);
 
-  // Compute final, collision-free positions for every visible card in one
-  // pass: manual placements win, auto slots fill the rest, and any resulting
-  // overlap gets nudged apart using each card's *measured* size.
+  // Positions: a card the user has DRAGGED sits exactly where they dropped it
+  // (free placement — no snapping/overlap-nudging). Cards that have never been
+  // moved fall into a tidy auto arc, collision-resolved among themselves so the
+  // default layout stays clean.
   const resolved: { pos: Pos; hw: number; hh: number }[] = [];
   visible.forEach((card, i) => {
     const { hw, hh } = sizeOf(card.key);
-    const raw = profile.positions[card.key] ?? arcSlot(i, visible.length, hw, hh, geom);
-    resolved.push({ pos: resolveOverlap(raw, hw, hh, resolved), hw, hh });
+    const manual = profile.positions[card.key];
+    if (manual) {
+      resolved.push({ pos: clampToStage(manual, hw, hh), hw, hh });
+    } else {
+      const raw = arcSlot(i, visible.length, hw, hh, geom);
+      resolved.push({ pos: resolveOverlap(raw, hw, hh, resolved), hw, hh });
+    }
   });
   const posOf = (i: number): Pos => resolved[i].pos;
 
@@ -195,9 +201,8 @@ export function ProfileHud({
     const x = ((info.point.x - stage.left) / stage.width) * 100;
     const y = ((info.point.y - stage.top) / stage.height) * 100;
     const { hw, hh } = resolved[i];
-    const others = resolved.filter((_, j) => j !== i);
-    const final = resolveOverlap(clampToStage({ x, y }, hw, hh), hw, hh, others);
-    setPosition(key, final);
+    // Drop it exactly where released (only clamped to stay on the stage).
+    setPosition(key, clampToStage({ x, y }, hw, hh));
     setDropVer((v) => ({ ...v, [key]: (v[key] ?? 0) + 1 }));
   };
 
@@ -216,11 +221,7 @@ export function ProfileHud({
     if (moves[e.key]) {
       e.preventDefault();
       const [dx, dy] = moves[e.key];
-      const others = resolved.filter((_, j) => j !== i);
-      setPosition(
-        card.key,
-        resolveOverlap(clampToStage({ x: p.x + dx, y: p.y + dy }, hw, hh), hw, hh, others)
-      );
+      setPosition(card.key, clampToStage({ x: p.x + dx, y: p.y + dy }, hw, hh));
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onEditCard(card);

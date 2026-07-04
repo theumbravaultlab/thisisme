@@ -102,6 +102,9 @@ export function buildPublicPayload(profile: Profile): Profile {
   data.customFields = [];
   data.customCategories = [];
   data.share = { slug: "", enabled: false };
+  // Publishing is itself an update — stamp "now" so the public page shows how
+  // recently this profile was refreshed.
+  data.updatedAt = new Date().toISOString();
 
   if (keys.has("age")) {
     data.birthYear = src.birthYear;

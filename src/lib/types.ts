@@ -117,6 +117,9 @@ export interface ProfileData {
 
   // public sharing (Phase 3)
   share: ShareSettings;
+
+  // ISO timestamp of the last save — shown as "Updated …" near the name.
+  updatedAt: string;
 }
 
 export interface ShareSettings {

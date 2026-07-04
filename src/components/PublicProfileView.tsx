@@ -40,7 +40,11 @@ export function PublicProfileView({ profile }: { profile: Profile }) {
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 py-4">
-        <NameTitle name={profile.data.name || "Someone"} font={profile.data.nameFont} />
+        <NameTitle
+          name={profile.data.name || "Someone"}
+          font={profile.data.nameFont}
+          updatedAt={profile.data.updatedAt}
+        />
 
         <div className="w-full">
           <ProfileHud

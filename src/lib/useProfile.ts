@@ -23,6 +23,11 @@ import {
   claimUsername as claimUsernameCloud,
   isUsernameAvailable,
   fetchEntitlement,
+  saveSnapshotCloud,
+  listSnapshotsCloud,
+  deleteSnapshotCloud,
+  type ProfileSnapshot,
+  type SnapshotBody,
 } from "./store";
 import { readableAccent } from "./color";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
@@ -313,6 +318,51 @@ export function useProfile() {
     [profile, user]
   );
 
+  // ---- version history (Phase 5, premium) ----------------------------------
+  const saveSnapshot = useCallback(
+    async (label?: string): Promise<{ error: string | null }> => {
+      const supabase = getSupabase();
+      if (!supabase || !user) return { error: "sign-in-required" };
+      if (profile.tier !== "premium") return { error: "premium-required" };
+      try {
+        await saveSnapshotCloud(supabase, user.id, label?.trim() || null, {
+          data: profile.data,
+          visibility: profile.visibility,
+          positions: profile.positions,
+        });
+        return { error: null };
+      } catch {
+        return { error: "Couldn't save this version." };
+      }
+    },
+    [user, profile]
+  );
+
+  const listSnapshots = useCallback(async (): Promise<ProfileSnapshot[]> => {
+    const supabase = getSupabase();
+    if (!supabase || !user) return [];
+    return listSnapshotsCloud(supabase, user.id).catch(() => []);
+  }, [user]);
+
+  // Restore an old version into the live profile (the normal save flow persists it).
+  const restoreSnapshot = useCallback((body: SnapshotBody) => {
+    setProfile((p) => ({
+      ...p,
+      data: { ...body.data },
+      visibility: { ...body.visibility },
+      positions: { ...(body.positions ?? {}) },
+    }));
+  }, []);
+
+  const deleteSnapshot = useCallback(
+    async (id: string) => {
+      const supabase = getSupabase();
+      if (!supabase || !user) return;
+      await deleteSnapshotCloud(supabase, id).catch(() => {});
+    },
+    [user]
+  );
+
   const removeAvatar = useCallback((dataUrl: string) => {
     setProfile((p) => {
       const avatars = p.data.avatars.filter((a) => a !== dataUrl);
@@ -514,6 +564,10 @@ export function useProfile() {
     addToLibrary,
     setActiveAvatar,
     removeAvatar,
+    saveSnapshot,
+    listSnapshots,
+    restoreSnapshot,
+    deleteSnapshot,
     addCustomField,
     updateCustomField,
     removeCustomField,

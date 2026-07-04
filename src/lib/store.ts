@@ -2,7 +2,7 @@
 // zero backend. Phase: swap these two functions for Supabase calls and the
 // rest of the app stays unchanged.
 
-import { Profile, CATEGORIES, FIELD_ORDER } from "./types";
+import { Profile, ProfileData, FieldVisibility, CATEGORIES, FIELD_ORDER } from "./types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Position keys are either a category title (grouped view) or a field key
@@ -87,6 +87,7 @@ export const DEFAULT_PROFILE: Profile = {
     customFields: [],
     customCategories: [],
     share: { slug: "", enabled: false },
+    updatedAt: "",
   },
   positions: {},
   // Default = the "Get to Know Me" preset: a curated, non-overwhelming set.
@@ -176,7 +177,11 @@ function isQuotaError(e: unknown): boolean {
 
 export function saveProfile(profile: Profile): void {
   if (typeof window === "undefined") return;
-  let toSave = profile;
+  // Stamp the save time so "Updated …" reflects the latest edit on reload.
+  let toSave: Profile = {
+    ...profile,
+    data: { ...profile.data, updatedAt: new Date().toISOString() },
+  };
   // The avatar library is the only thing that grows unbounded. If we're over
   // quota (e.g. a browser with a smaller-than-usual localStorage limit), drop
   // the oldest saved avatars one at a time and retry rather than throwing and
@@ -240,7 +245,7 @@ export async function saveProfileCloud(
 ): Promise<void> {
   await supabase.from("profiles").upsert({
     id: userId,
-    data: profile.data,
+    data: { ...profile.data, updatedAt: new Date().toISOString() },
     visibility: profile.visibility,
     positions: profile.positions,
     theme: profile.theme,
@@ -346,6 +351,48 @@ export async function fetchEntitlement(
     .eq("user_id", userId)
     .maybeSingle();
   return Boolean(data?.is_premium);
+}
+
+// ---- Version history (Phase 5, premium) -------------------------------------
+export interface SnapshotBody {
+  data: ProfileData;
+  visibility: FieldVisibility;
+  positions: Profile["positions"];
+}
+
+export interface ProfileSnapshot {
+  id: string;
+  label: string | null;
+  created_at: string;
+  snapshot: SnapshotBody;
+}
+
+export async function saveSnapshotCloud(
+  supabase: SupabaseClient,
+  userId: string,
+  label: string | null,
+  body: SnapshotBody
+): Promise<void> {
+  await supabase.from("profile_snapshots").insert({ user_id: userId, label, snapshot: body });
+}
+
+export async function listSnapshotsCloud(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<ProfileSnapshot[]> {
+  const { data } = await supabase
+    .from("profile_snapshots")
+    .select("id, label, created_at, snapshot")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  return (data as ProfileSnapshot[]) ?? [];
+}
+
+export async function deleteSnapshotCloud(
+  supabase: SupabaseClient,
+  id: string
+): Promise<void> {
+  await supabase.from("profile_snapshots").delete().eq("id", id);
 }
 
 // Derive a displayable age string from the profile's settings.
