@@ -6,7 +6,6 @@ import type { Profile } from "@/lib/types";
 import { readableAccent } from "@/lib/color";
 import { NameTitle } from "./NameTitle";
 import { ProfileHud } from "./ProfileHud";
-import { MobileProfile } from "./MobileProfile";
 
 // Read-only render of a published profile for public visitors (no auth, no
 // editing). Reuses the same HUD components in non-interactive mode.
@@ -43,17 +42,13 @@ export function PublicProfileView({ profile }: { profile: Profile }) {
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 py-4">
         <NameTitle name={profile.data.name || "Someone"} font={profile.data.nameFont} />
 
-        <div className="hidden w-full sm:block">
+        <div className="w-full">
           <ProfileHud
             profile={profile}
             setPosition={noop}
             onEditCard={noop}
             interactive={false}
           />
-        </div>
-
-        <div className="w-full sm:hidden">
-          <MobileProfile profile={profile} onEditCard={noop} interactive={false} />
         </div>
       </main>
 

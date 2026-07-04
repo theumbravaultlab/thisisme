@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { ProfileHud } from "@/components/ProfileHud";
-import { MobileProfile } from "@/components/MobileProfile";
 import { EditPanel } from "@/components/EditPanel";
 import { NameTitle } from "@/components/NameTitle";
 import { AuthModal } from "@/components/AuthModal";
@@ -264,40 +263,27 @@ export default function Home() {
 
         {(!hydrated || switchingView) && <HudSkeleton />}
 
-        {/* desktop / tablet: draggable float */}
+        {/* HUD — cards float around the avatar on every screen size (the HUD is
+            responsive: tighter geometry + smaller cards + tap-to-edit on phones) */}
         {hydrated && !switchingView && (
-          <div className={`hidden w-full sm:block ${pulsing ? "animate-save-pulse" : ""}`}>
+          <div className={`w-full ${pulsing ? "animate-save-pulse" : ""}`}>
             <ProfileHud
               profile={profile}
               setPosition={setPosition}
               clearPosition={clearPosition}
               onEditCard={editCard}
             />
+            {/* Reset only matters where cards are draggable (desktop) */}
             <button
               onClick={handleReset}
-              className="mx-auto mt-3 block text-xs text-fg-muted transition hover:text-fg"
+              className="mx-auto mt-3 hidden text-xs text-fg-muted transition hover:text-fg sm:block"
             >
               Reset layout
             </button>
             {hiddenSectionCount > 0 && (
               <button
                 onClick={() => setPanelOpen(true)}
-                className="mx-auto mt-1 block text-xs text-fg-muted transition hover:text-accent"
-              >
-                + {hiddenSectionCount} more section{hiddenSectionCount > 1 ? "s" : ""} available — Customize
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* mobile: stacked list */}
-        {hydrated && !switchingView && (
-          <div className={`w-full sm:hidden ${pulsing ? "animate-save-pulse" : ""}`}>
-            <MobileProfile profile={profile} onEditCard={editCard} />
-            {hiddenSectionCount > 0 && (
-              <button
-                onClick={() => setPanelOpen(true)}
-                className="mx-auto mt-3 block text-xs text-fg-muted transition hover:text-accent"
+                className="mx-auto mt-2 block text-xs text-fg-muted transition hover:text-accent"
               >
                 + {hiddenSectionCount} more section{hiddenSectionCount > 1 ? "s" : ""} available — Customize
               </button>

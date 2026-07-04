@@ -8,12 +8,19 @@ import { CategoryCard } from "./CategoryCard";
 import { Silhouette } from "./Silhouette";
 import { CosmicBackdrop } from "./CosmicBackdrop";
 
-// Character center + rings, all in stage %.
-const C: Pos = { x: 50, y: 42 };
-const RING_X = 40;
-const RING_Y = 36;
-const ANCHOR_X = 23; // inner ring — where lines meet the character outline
-const ANCHOR_Y = 32;
+// Character center + ring radii (all stage %). Two sets: roomy on desktop, and
+// tighter on phones so the smaller mobile cards still fit inside the narrow
+// stage width (keeping the "cards around the avatar" layout without overflow).
+interface Geom {
+  cx: number;
+  cy: number;
+  ringX: number;
+  ringY: number;
+  anchorX: number; // inner ring — where lines meet the character outline
+  anchorY: number;
+}
+const DESKTOP_GEOM: Geom = { cx: 50, cy: 42, ringX: 40, ringY: 36, anchorX: 23, anchorY: 32 };
+const MOBILE_GEOM: Geom = { cx: 50, cy: 40, ringX: 27, ringY: 33, anchorX: 17, anchorY: 27 };
 
 // Fallback card half-size (stage %) used before a card's real size has been
 // measured. Real measured sizes (see useCardSizes below) take over once known,
@@ -73,12 +80,12 @@ function clampToStage(p: Pos, hw: number, hh: number): Pos {
 }
 
 // Default slot: an even arc around the character, leaving a gap at the bottom.
-function arcSlot(index: number, count: number, hw: number, hh: number): Pos {
+function arcSlot(index: number, count: number, hw: number, hh: number, g: Geom): Pos {
   const startDeg = 125;
   const sweep = 290; // wraps left → top → right, skipping straight-down
   const deg = count <= 1 ? 270 : startDeg + (sweep * index) / (count - 1);
   return clampToStage(
-    { x: C.x + RING_X * Math.cos(rad(deg)), y: C.y + RING_Y * Math.sin(rad(deg)) },
+    { x: g.cx + g.ringX * Math.cos(rad(deg)), y: g.cy + g.ringY * Math.sin(rad(deg)) },
     hw,
     hh
   );
@@ -118,9 +125,9 @@ function resolveOverlap(
 
 // Where a card's connector line meets the character — a point on the inner
 // ring in the direction of the card, so lines float around the outline.
-function anchorFor(p: Pos): Pos {
-  const a = Math.atan2(p.y - C.y, p.x - C.x);
-  return { x: C.x + ANCHOR_X * Math.cos(a), y: C.y + ANCHOR_Y * Math.sin(a) };
+function anchorFor(p: Pos, g: Geom): Pos {
+  const a = Math.atan2(p.y - g.cy, p.x - g.cx);
+  return { x: g.cx + g.anchorX * Math.cos(a), y: g.cy + g.anchorY * Math.sin(a) };
 }
 
 // Best practice: a leader line should stop at the label's bounding-box edge
@@ -152,7 +159,19 @@ export function ProfileHud({
   const stageRef = useRef<HTMLDivElement>(null);
   const [dropVer, setDropVer] = useState<Record<string, number>>({});
   const [showHint, setShowHint] = useState(true);
+  const [mobile, setMobile] = useState(false);
   const { registerCard, sizeOf } = useCardSizes(stageRef);
+
+  // Phones get the tighter geometry + smaller cards; drag is disabled there so
+  // it never fights vertical scrolling.
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  const geom = mobile ? MOBILE_GEOM : DESKTOP_GEOM;
+  const canDrag = interactive && !mobile;
 
   const visible = getHudCards(profile);
 
@@ -162,7 +181,7 @@ export function ProfileHud({
   const resolved: { pos: Pos; hw: number; hh: number }[] = [];
   visible.forEach((card, i) => {
     const { hw, hh } = sizeOf(card.key);
-    const raw = profile.positions[card.key] ?? arcSlot(i, visible.length, hw, hh);
+    const raw = profile.positions[card.key] ?? arcSlot(i, visible.length, hw, hh, geom);
     resolved.push({ pos: resolveOverlap(raw, hw, hh, resolved), hw, hh });
   });
   const posOf = (i: number): Pos => resolved[i].pos;
@@ -210,7 +229,7 @@ export function ProfileHud({
   return (
     <div
       ref={stageRef}
-      className="relative mx-auto h-[80vh] min-h-[600px] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-border bg-bg-elev/20"
+      className="relative mx-auto h-[78vh] min-h-[520px] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-border bg-bg-elev/20 sm:h-[80vh] sm:min-h-[600px]"
     >
       <CosmicBackdrop />
 
@@ -229,9 +248,9 @@ export function ProfileHud({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 6 }}
             onClick={() => setShowHint(false)}
-            className="glass absolute bottom-5 left-1/2 z-30 -translate-x-1/2 rounded-full px-3.5 py-1.5 text-xs text-fg-muted transition hover:text-fg"
+            className="glass absolute bottom-5 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs text-fg-muted transition hover:text-fg"
           >
-            Drag to rearrange · tap to edit · double-click to reset a card
+            {canDrag ? "Drag to rearrange · tap to edit · double-click to reset" : "Tap a card to edit"}
           </motion.button>
         )}
       </AnimatePresence>
@@ -249,7 +268,7 @@ export function ProfileHud({
       >
         {visible.map((card, i) => {
           const p = posOf(i);
-          const a = anchorFor(p);
+          const a = anchorFor(p, geom);
           const e = cardEdge(p, a, resolved[i].hw, resolved[i].hh);
           return (
             <g key={card.key}>
@@ -276,12 +295,12 @@ export function ProfileHud({
             <motion.div
               key={`${card.key}:${dropVer[card.key] ?? 0}`}
               ref={registerCard(card.key)}
-              drag={interactive}
+              drag={canDrag}
               dragMomentum={false}
               dragElastic={0}
               onDragEnd={(_, info) => onDragEnd(card.key, i, info)}
               onDoubleClick={
-                interactive && clearPosition ? () => clearPosition(card.key) : undefined
+                canDrag && clearPosition ? () => clearPosition(card.key) : undefined
               }
               tabIndex={interactive ? 0 : -1}
               role={interactive ? "button" : undefined}
@@ -292,8 +311,8 @@ export function ProfileHud({
               }
               onKeyDown={(e) => onCardKey(card, i, e)}
               className={`group absolute z-20 -translate-x-1/2 -translate-y-1/2 touch-none transition-[left,top] duration-500 ease-out ${
-                cardWidth === "detailed" ? "w-48" : "w-60"
-              } ${interactive ? "cursor-grab active:cursor-grabbing" : ""}`}
+                mobile ? "w-36" : cardWidth === "detailed" ? "w-48" : "w-60"
+              } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
               style={{ left: `${p.x}%`, top: `${p.y}%` }}
               initial={{ opacity: 0, scale: 0.7 }}
               animate={{ opacity: 1, scale: 1 }}

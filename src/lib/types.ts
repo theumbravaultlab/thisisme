@@ -236,6 +236,7 @@ export const RELATIONSHIP_OPTIONS = [
   "Engaged",
   "Married",
   "It's complicated",
+  "Other",
   "Prefer not to say",
 ];
 
@@ -249,6 +250,7 @@ export const RELIGION_OPTIONS = [
   "Spiritual",
   "Agnostic",
   "Atheist",
+  "Other",
   "Prefer not to say",
 ];
 

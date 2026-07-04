@@ -33,9 +33,11 @@ function daysInMonth(year: number, month: number): number {
 const selectClass =
   "w-full appearance-none rounded-lg border border-border bg-bg px-2.5 py-2 text-sm text-fg outline-none focus:border-accent";
 
-// Day / Month / Year selects rather than a single native date input — on
-// mobile, a <select> already opens as a spinning wheel (iOS) or a picker
-// dialog (Android), which is the best "wheel" UX without a custom widget.
+// Month / Day / Year selects rather than a single native date input — on
+// mobile, a <select> opens as a spinning wheel (iOS) or a picker dialog
+// (Android), the best "wheel" UX without a custom widget. Each part is held in
+// local state so partial picks stick (the committed value only updates once all
+// three are chosen), and the day list adjusts to the selected month/year.
 export function DateInput({
   value,
   onChange,
@@ -44,75 +46,81 @@ export function DateInput({
   onChange: (v: string) => void;
 }) {
   const [yStr, mStr, dStr] = value ? value.split("-") : ["", "", ""];
-  const year = yStr ? Number(yStr) : undefined;
-  const month = mStr ? Number(mStr) : undefined;
-  const day = dStr ? Number(dStr) : undefined;
+  const [month, setMonth] = useState<number | undefined>(mStr ? Number(mStr) : undefined);
+  const [day, setDay] = useState<number | undefined>(dStr ? Number(dStr) : undefined);
+  const [year, setYear] = useState<number | undefined>(yStr ? Number(yStr) : undefined);
 
   const thisYear = new Date().getFullYear();
   const years = Array.from({ length: 101 }, (_, i) => thisYear - i);
-  const maxDay = daysInMonth(year ?? thisYear, month ?? 12);
+  const maxDay = daysInMonth(year ?? 2000, month ?? 1);
   const days = Array.from({ length: maxDay }, (_, i) => i + 1);
 
-  const commit = (nextDay?: number, nextMonth?: number, nextYear?: number) => {
-    if (!nextDay || !nextMonth || !nextYear) return;
-    const clampedDay = Math.min(nextDay, daysInMonth(nextYear, nextMonth));
+  const commit = (m?: number, d?: number, y?: number) => {
+    if (!m || !d || !y) return; // only save once all three are picked
+    const clampedDay = Math.min(d, daysInMonth(y, m));
     const pad = (n: number) => String(n).padStart(2, "0");
-    onChange(`${nextYear}-${pad(nextMonth)}-${pad(clampedDay)}`);
+    onChange(`${y}-${pad(m)}-${pad(clampedDay)}`);
   };
 
   return (
     <div className="grid grid-cols-3 gap-2">
-      <div className="relative">
-        <select
-          value={day ?? ""}
-          onChange={(e) => commit(Number(e.target.value), month, year)}
-          className={selectClass}
-          aria-label="Day"
-        >
-          <option value="" disabled>
-            Day
+      <select
+        value={month ?? ""}
+        onChange={(e) => {
+          const m = Number(e.target.value);
+          setMonth(m);
+          commit(m, day, year);
+        }}
+        className={selectClass}
+        aria-label="Month"
+      >
+        <option value="" disabled>
+          Month
+        </option>
+        {MONTHS.map((label, i) => (
+          <option key={label} value={i + 1}>
+            {label}
           </option>
-          {days.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="relative">
-        <select
-          value={month ?? ""}
-          onChange={(e) => commit(day, Number(e.target.value), year)}
-          className={selectClass}
-          aria-label="Month"
-        >
-          <option value="" disabled>
-            Month
+        ))}
+      </select>
+      <select
+        value={day ?? ""}
+        onChange={(e) => {
+          const d = Number(e.target.value);
+          setDay(d);
+          commit(month, d, year);
+        }}
+        className={selectClass}
+        aria-label="Day"
+      >
+        <option value="" disabled>
+          Day
+        </option>
+        {days.map((d) => (
+          <option key={d} value={d}>
+            {d}
           </option>
-          {MONTHS.map((label, i) => (
-            <option key={label} value={i + 1}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="relative">
-        <select
-          value={year ?? ""}
-          onChange={(e) => commit(day, month, Number(e.target.value))}
-          className={selectClass}
-          aria-label="Year"
-        >
-          <option value="" disabled>
-            Year
+        ))}
+      </select>
+      <select
+        value={year ?? ""}
+        onChange={(e) => {
+          const y = Number(e.target.value);
+          setYear(y);
+          commit(month, day, y);
+        }}
+        className={selectClass}
+        aria-label="Year"
+      >
+        <option value="" disabled>
+          Year
+        </option>
+        {years.map((y) => (
+          <option key={y} value={y}>
+            {y}
           </option>
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </div>
+        ))}
+      </select>
     </div>
   );
 }

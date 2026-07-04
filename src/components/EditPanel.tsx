@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   FIELD_META,
@@ -64,6 +64,30 @@ export function EditPanel({
   const [openCats, setOpenCats] = useState<Set<string>>(
     () => new Set(categories.map((c) => c.key))
   );
+  // Per-row "recency" of the last toggle, so a just-turned-on row sinks to the
+  // bottom of the shown group and a just-turned-off row rises to the top of the
+  // hidden group. Reset each time the panel closes.
+  const [moves, setMoves] = useState<Record<string, number>>({});
+  const moveSeq = useRef(0);
+
+  // Closing the panel collapses every open detail + clears toggle ordering, so
+  // it reopens clean.
+  useEffect(() => {
+    if (open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpanded(null);
+    setMoves({});
+    moveSeq.current = 0;
+  }, [open]);
+
+  // Flip a row's visibility, record the move for ordering, and — when turning
+  // ON — open that detail for editing (turning OFF just collapses it).
+  const handleToggleRow = (rowKey: string, turningOn: boolean, apply: () => void) => {
+    apply();
+    moveSeq.current += 1;
+    setMoves((m) => ({ ...m, [rowKey]: moveSeq.current }));
+    setExpanded((e) => (turningOn ? rowKey : e === rowKey ? null : e));
+  };
 
   useEffect(() => {
     if (!focusCategory) return;
@@ -154,6 +178,8 @@ export function EditPanel({
                     onUpgrade={onUpgrade}
                     open={openCats.has(category.key)}
                     expanded={expanded}
+                    moves={moves}
+                    onToggleRow={handleToggleRow}
                     onToggleOpen={() => toggleCat(category.key)}
                     onToggleExpand={toggleExpand}
                     update={update}
@@ -202,6 +228,8 @@ function CategorySection({
   onUpgrade,
   open,
   expanded,
+  moves,
+  onToggleRow,
   onToggleOpen,
   onToggleExpand,
   update,
@@ -218,6 +246,8 @@ function CategorySection({
   onUpgrade: () => void;
   open: boolean;
   expanded: string | null;
+  moves: Record<string, number>;
+  onToggleRow: (rowKey: string, turningOn: boolean, apply: () => void) => void;
   onToggleOpen: () => void;
   onToggleExpand: (key: string) => void;
   update: <K extends keyof ProfileData>(key: K, value: ProfileData[K]) => void;
@@ -231,9 +261,18 @@ function CategorySection({
   // "name" is pinned at the top of the panel instead of living in this
   // accordion (see EditPanel above), so exclude it here to avoid showing it twice.
   const rows = category.rows.filter((r) => !(r.kind === "builtin" && r.field === "name"));
-  const used = rows.filter((r) => rowIsVisible(profile, r));
-  const hidden = rows.filter((r) => !rowIsVisible(profile, r));
-  // Toggled-off rows sink to the bottom instead of being hidden away.
+  const baseIdx = new Map(rows.map((r, i) => [rowKey(r), i]));
+  const moveOf = (r: Row) => moves[rowKey(r)] ?? 0;
+  const idxOf = (r: Row) => baseIdx.get(rowKey(r)) ?? 0;
+  // Shown rows: most-recently-turned-on sinks to the bottom (ascending by move,
+  // untouched keep original order at the top). Hidden rows: most-recently-
+  // turned-off rises to the top (descending by move).
+  const used = rows
+    .filter((r) => rowIsVisible(profile, r))
+    .sort((a, b) => moveOf(a) - moveOf(b) || idxOf(a) - idxOf(b));
+  const hidden = rows
+    .filter((r) => !rowIsVisible(profile, r))
+    .sort((a, b) => moveOf(b) - moveOf(a) || idxOf(a) - idxOf(b));
   const visibleRows = [...used, ...hidden];
   const customCatId = category.builtin ? null : category.key.slice("cat:".length);
 
@@ -296,7 +335,11 @@ function CategorySection({
                     expanded={expanded === rowKey(row)}
                     premium={premium}
                     onToggleExpand={() => onToggleExpand(rowKey(row))}
-                    onToggleVis={() => toggleVisibility(row.field)}
+                    onToggleVis={() =>
+                      onToggleRow(rowKey(row), !profile.visibility[row.field], () =>
+                        toggleVisibility(row.field)
+                      )
+                    }
                     data={profile.data}
                     update={update}
                   />
@@ -307,6 +350,11 @@ function CategorySection({
                     profile={profile}
                     expanded={expanded === rowKey(row)}
                     onToggleExpand={() => onToggleExpand(rowKey(row))}
+                    onToggleVis={(next) =>
+                      onToggleRow(rowKey(row), next, () =>
+                        updateCustomField(row.id, { visible: next })
+                      )
+                    }
                     updateCustomField={updateCustomField}
                     removeCustomField={removeCustomField}
                   />
@@ -394,6 +442,7 @@ function CustomRow({
   profile,
   expanded,
   onToggleExpand,
+  onToggleVis,
   updateCustomField,
   removeCustomField,
 }: {
@@ -401,6 +450,7 @@ function CustomRow({
   profile: Profile;
   expanded: boolean;
   onToggleExpand: () => void;
+  onToggleVis: (next: boolean) => void;
   updateCustomField: (id: string, patch: Partial<CustomField>) => void;
   removeCustomField: (id: string) => void;
 }) {
@@ -418,7 +468,7 @@ function CustomRow({
           {cf.label || "Detail"}
           <span className="text-fg-muted">{expanded ? "▴" : "▾"}</span>
         </button>
-        <Switch on={cf.visible} onClick={() => updateCustomField(id, { visible: !cf.visible })} />
+        <Switch on={cf.visible} onClick={() => onToggleVis(!cf.visible)} />
       </div>
 
       <AnimatePresence initial={false}>
