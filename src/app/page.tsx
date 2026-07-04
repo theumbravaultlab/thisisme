@@ -42,7 +42,8 @@ export default function Home() {
     toggleVisibility,
     toggleTheme,
     toggleCardView,
-    setTier,
+    refreshEntitlement,
+    startCheckout,
     addCustomField,
     updateCustomField,
     removeCustomField,
@@ -125,6 +126,24 @@ export default function Home() {
     setAvatarHighlighted(false);
   };
 
+  // Returning from a successful Lemon Squeezy checkout (?upgraded=1). The
+  // webhook may lag the redirect slightly, so poll the entitlement a few times
+  // until premium lands, then clean the URL.
+  useEffect(() => {
+    if (!hydrated || !user) return;
+    if (!new URLSearchParams(window.location.search).get("upgraded")) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setToast({ message: "🎉 Welcome to Premium! Unlocking your perks…" });
+    let tries = 0;
+    const iv = setInterval(async () => {
+      tries += 1;
+      await refreshEntitlement();
+      if (tries >= 6) clearInterval(iv);
+    }, 2500);
+    return () => clearInterval(iv);
+  }, [hydrated, user, refreshEntitlement]);
+
 
   // Brief skeleton flash + save-pulse whenever the card view mode changes, so
   // the reflow reads as an intentional transition rather than a jarring pop.
@@ -160,10 +179,18 @@ export default function Home() {
     track("edit_card", { card: card.key, mode: profile.cardView });
   };
 
-  // Testing stand-in for a real checkout — flips the account to premium.
-  const upgrade = () => {
-    setTier("premium");
-    track("upgrade_clicked");
+  // Kick off a real Lemon Squeezy checkout. Premium is tied to an account, so
+  // prompt sign-in first if needed; startCheckout redirects to the payment page.
+  const upgrade = async () => {
+    if (!user) {
+      track("upgrade_clicked", { signedIn: false });
+      setAuthOpen(true);
+      return;
+    }
+    track("upgrade_clicked", { signedIn: true });
+    const { error } = await startCheckout();
+    if (error === "sign-in-required") setAuthOpen(true);
+    else if (error) setToast({ message: error });
   };
 
   const handleReset = () => {
@@ -201,8 +228,8 @@ export default function Home() {
         onSignOut={signOut}
         cardView={profile.cardView}
         onToggleCardView={handleToggleCardView}
-        tier={profile.tier}
-        onSetTier={setTier}
+        premium={premium}
+        onUpgrade={upgrade}
         onShare={() => setShareOpen(true)}
         highlightAvatarLink={avatarHighlighted}
         onAvatarLinkClick={dismissAvatarHighlight}

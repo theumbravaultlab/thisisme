@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { CardView, Tier } from "@/lib/types";
+import type { CardView } from "@/lib/types";
 
 interface Props {
   editing: boolean;
@@ -14,8 +14,8 @@ interface Props {
   onSignOut: () => void;
   cardView: CardView;
   onToggleCardView: () => void;
-  tier: Tier;
-  onSetTier: (tier: Tier) => void;
+  premium: boolean;
+  onUpgrade: () => void;
   onShare: () => void;
   highlightAvatarLink?: boolean;
   onAvatarLinkClick?: () => void;
@@ -35,8 +35,8 @@ export function Header({
   onSignOut,
   cardView,
   onToggleCardView,
-  tier,
-  onSetTier,
+  premium,
+  onUpgrade,
   onShare,
   highlightAvatarLink,
   onAvatarLinkClick,
@@ -76,35 +76,23 @@ export function Header({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Tier toggle — testing stand-in for real billing */}
-          <div
-            role="group"
-            aria-label="Account tier (testing)"
-            title="Testing: switch tier to preview each view"
-            className="hidden items-center rounded-full border border-border bg-bg-elev/60 p-0.5 text-xs sm:inline-flex"
-          >
-            {(
-              [
-                ["standard", "Standard"],
-                ["premium", "★ Premium"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => tier !== key && onSetTier(key)}
-                aria-pressed={tier === key}
-                className={`rounded-full px-2.5 py-1 font-medium transition ${
-                  tier === key
-                    ? key === "premium"
-                      ? "bg-gradient-to-r from-amber-400 to-accent text-white"
-                      : "bg-accent text-white"
-                    : "text-fg-muted hover:text-fg"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* Premium badge (paid) or upgrade entry point (not paid) */}
+          {premium ? (
+            <span
+              title="Premium account"
+              className="hidden items-center gap-1 rounded-full border border-amber-400/50 bg-gradient-to-r from-amber-400/15 to-accent/15 px-2.5 py-1 text-xs font-semibold text-amber-500 sm:inline-flex"
+            >
+              ★ Premium
+            </span>
+          ) : (
+            <button
+              onClick={onUpgrade}
+              title="Unlock Premium"
+              className="hidden items-center rounded-full border border-amber-400/50 px-2.5 py-1 text-xs font-semibold text-amber-500 transition hover:bg-amber-400/10 sm:inline-flex"
+            >
+              ✨ Upgrade
+            </button>
+          )}
 
           <button
             onClick={toggleTheme}
@@ -187,29 +175,18 @@ export function Header({
           ))}
         </div>
 
-        <div
-          role="group"
-          aria-label="Account tier (testing)"
-          className="inline-flex items-center rounded-full border border-border bg-bg-elev/60 p-0.5 text-xs"
-        >
-          {(
-            [
-              ["standard", "Standard"],
-              ["premium", "★ Premium"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => tier !== key && onSetTier(key)}
-              aria-pressed={tier === key}
-              className={`rounded-full px-3 py-1 font-medium transition ${
-                tier === key ? "bg-accent text-white" : "text-fg-muted hover:text-fg"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {premium ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/50 bg-gradient-to-r from-amber-400/15 to-accent/15 px-3 py-1 text-xs font-semibold text-amber-500">
+            ★ Premium
+          </span>
+        ) : (
+          <button
+            onClick={onUpgrade}
+            className="inline-flex items-center rounded-full border border-amber-400/50 px-3 py-1 text-xs font-semibold text-amber-500 transition hover:bg-amber-400/10"
+          >
+            ✨ Upgrade
+          </button>
+        )}
       </div>
     </header>
   );

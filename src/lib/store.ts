@@ -103,7 +103,10 @@ export function loadProfile(): Profile {
       visibility: { ...DEFAULT_PROFILE.visibility, ...parsed.visibility },
       theme: parsed.theme ?? DEFAULT_PROFILE.theme,
       cardView: parsed.cardView ?? DEFAULT_PROFILE.cardView,
-      tier: parsed.tier ?? DEFAULT_PROFILE.tier,
+      // tier is server-authoritative (entitlements table) — never trusted from
+      // localStorage, or premium could be self-granted. Always load as standard;
+      // useProfile upgrades it from the entitlement after sign-in.
+      tier: "standard",
       positions: prunePositions(parsed.positions),
     };
   } catch {
@@ -272,6 +275,21 @@ export async function claimUsername(
     return error.code === "23505" ? "That handle is taken." : error.message;
   }
   return null;
+}
+
+// ---- Entitlements (Phase 4 premium) -----------------------------------------
+// Reads the user's premium flag from the entitlements table. RLS lets a user
+// read only their own row; only the billing webhook (service role) can write it.
+export async function fetchEntitlement(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("entitlements")
+    .select("is_premium")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return Boolean(data?.is_premium);
 }
 
 // Derive a displayable age string from the profile's settings.

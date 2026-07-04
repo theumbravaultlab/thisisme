@@ -22,6 +22,7 @@ import {
   getMyUsername,
   claimUsername as claimUsernameCloud,
   isUsernameAvailable,
+  fetchEntitlement,
 } from "./store";
 import { readableAccent } from "./color";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
@@ -101,6 +102,14 @@ export function useProfile() {
           }
           if (active && handle) {
             setProfile((p) => ({ ...p, data: { ...p.data, username: handle } }));
+          }
+          // Premium is server-authoritative — read it from the entitlements
+          // table and upgrade the (default-standard) tier if they've paid.
+          try {
+            const prem = await fetchEntitlement(supabase, u.id);
+            if (active && prem) setProfile((p) => ({ ...p, tier: "premium" }));
+          } catch {
+            /* no entitlements row / table yet → stays standard */
           }
         } catch {
           if (active) setProfile(loadProfile());
@@ -220,10 +229,47 @@ export function useProfile() {
     }));
   }, []);
 
-  // ---- tier (testing toggle; real billing would set this server-side) ------
-  const setTier = useCallback((tier: Profile["tier"]) => {
-    setProfile((p) => ({ ...p, tier }));
-  }, []);
+  // ---- premium / billing ---------------------------------------------------
+  // Re-reads the entitlement from the server and syncs the tier. Used after a
+  // returning checkout (?upgraded=1) so premium reflects as soon as the webhook
+  // has processed the payment.
+  const refreshEntitlement = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase || !user) return;
+    try {
+      const prem = await fetchEntitlement(supabase, user.id);
+      setProfile((p) => ({ ...p, tier: prem ? "premium" : "standard" }));
+    } catch {
+      /* ignore */
+    }
+  }, [user]);
+
+  // Starts a Lemon Squeezy checkout for the signed-in user and redirects there.
+  // Returns { error: "sign-in-required" } if they're not signed in (premium is
+  // tied to an account), or another error string on failure.
+  const startCheckout = useCallback(async (): Promise<{ error: string | null }> => {
+    const supabase = getSupabase();
+    if (!supabase || !user) return { error: "sign-in-required" };
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return { error: "sign-in-required" };
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = (await res.json()) as { url?: string; error?: string };
+      if (json.url) {
+        window.location.href = json.url;
+        return { error: null };
+      }
+      return { error: json.error || "Could not start checkout." };
+    } catch {
+      return { error: "Could not start checkout." };
+    }
+  }, [user]);
 
   // ---- avatar library ------------------------------------------------------
   // Every generation is added here; standard keeps the 3 most recent, premium
@@ -449,7 +495,8 @@ export function useProfile() {
     toggleVisibility,
     toggleTheme,
     toggleCardView,
-    setTier,
+    refreshEntitlement,
+    startCheckout,
     addToLibrary,
     setActiveAvatar,
     removeAvatar,

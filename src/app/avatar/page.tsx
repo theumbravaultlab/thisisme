@@ -21,7 +21,8 @@ export default function AvatarStudio() {
   const {
     profile,
     hydrated,
-    setTier,
+    user,
+    startCheckout,
     addToLibrary,
     setActiveAvatar,
     removeAvatar,
@@ -357,7 +358,19 @@ export default function AvatarStudio() {
             {AVATAR_LIMITS.premium} avatars (Standard keeps {AVATAR_LIMITS.standard}).
           </span>
           <button
-            onClick={() => setTier("premium")}
+            onClick={async () => {
+              if (!user) {
+                setError("Sign in on the home page to upgrade to Premium.");
+                return;
+              }
+              const { error } = await startCheckout();
+              if (error)
+                setError(
+                  error === "sign-in-required"
+                    ? "Sign in on the home page to upgrade to Premium."
+                    : error
+                );
+            }}
             className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
           >
             Upgrade
