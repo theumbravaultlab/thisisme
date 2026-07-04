@@ -50,5 +50,26 @@ export default async function PublicProfilePage({
     );
   }
 
-  return <PublicProfileView profile={profile} />;
+  // Structured data so search engines can render a rich Person/Profile result.
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    mainEntity: {
+      "@type": "Person",
+      name: profile.data.name || "Someone",
+      url: `${base}/p/${slug}`,
+      image: `${base}/p/${slug}/opengraph-image`,
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PublicProfileView profile={profile} />
+    </>
+  );
 }
