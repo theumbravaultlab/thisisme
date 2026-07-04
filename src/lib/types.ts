@@ -15,6 +15,13 @@ export type Tier = "standard" | "premium";
 // How many generated avatars each tier keeps in the library.
 export const AVATAR_LIMITS: Record<Tier, number> = { standard: 3, premium: 20 };
 
+// How many avatar GENERATIONS each stage gets (avatars cost real money to make,
+// so this both protects the API budget and is the natural upgrade trigger):
+//   anon          — a taste before sign-in (client-gated; per-IP backstop)
+//   free          — lifetime total for a signed-in free account (server-gated)
+//   premiumPerDay — per-day cap for premium (feels unlimited, bounds cost)
+export const AVATAR_GEN_LIMITS = { anon: 1, free: 3, premiumPerDay: 30 } as const;
+
 // A premium-only user-defined stat, e.g. "Favorite Fruit".
 export interface CustomField {
   id: string;

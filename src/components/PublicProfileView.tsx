@@ -57,12 +57,16 @@ export function PublicProfileView({ profile }: { profile: Profile }) {
         </div>
       </main>
 
-      <footer className="border-t border-border px-4 py-4 text-center text-sm text-fg-muted">
-        Made with{" "}
-        <Link href="/" className="font-semibold text-accent">
-          thisisme
-        </Link>
-      </footer>
+      {/* Free profiles carry the "thisisme" credit (the viral loop). Premium
+          removes it — a paid perk. */}
+      {profile.tier !== "premium" && (
+        <footer className="border-t border-border px-4 py-4 text-center text-sm text-fg-muted">
+          Made with{" "}
+          <Link href="/" className="font-semibold text-accent">
+            thisisme
+          </Link>
+        </footer>
+      )}
     </>
   );
 }

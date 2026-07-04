@@ -1,7 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { paleTint } from "@/lib/color";
 import { rateLimit } from "@/lib/rateLimit";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { AVATAR_GEN_LIMITS } from "@/lib/types";
+
+// ---- per-account generation metering ----------------------------------------
+interface UsageRow {
+  total_gens: number;
+  day: string | null;
+  day_gens: number;
+}
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+// Resolve the signed-in user (if any) from their Supabase access token. Anon
+// requests just return null and fall back to the per-IP taste limit.
+async function userFromRequest(req: NextRequest): Promise<string | null> {
+  const authz = req.headers.get("authorization") || "";
+  const token = authz.startsWith("Bearer ") ? authz.slice(7) : "";
+  if (!token) return null;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return null;
+  try {
+    const sb = createClient(url, anon, { auth: { persistSession: false } });
+    const {
+      data: { user },
+    } = await sb.auth.getUser(token);
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function readPremium(admin: SupabaseClient, userId: string): Promise<boolean> {
+  const { data } = await admin
+    .from("entitlements")
+    .select("is_premium")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return Boolean(data?.is_premium);
+}
+
+async function readUsage(admin: SupabaseClient, userId: string): Promise<UsageRow | null> {
+  const { data } = await admin
+    .from("avatar_usage")
+    .select("total_gens, day, day_gens")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return (data as UsageRow) ?? null;
+}
+
+// Record one successful, real (non-demo) generation against the account.
+async function recordGen(admin: SupabaseClient, userId: string, usage: UsageRow | null): Promise<void> {
+  const today = todayStr();
+  const dayGens = (usage?.day === today ? usage.day_gens : 0) + 1;
+  await admin.from("avatar_usage").upsert(
+    {
+      user_id: userId,
+      total_gens: (usage?.total_gens ?? 0) + 1,
+      day: today,
+      day_gens: dayGens,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+}
 
 // Best-effort client IP. On Vercel/most proxies the client is the leftmost
 // entry in x-forwarded-for; falls back to x-real-ip.
@@ -159,18 +225,49 @@ export async function POST(req: NextRequest) {
       { status: 429, headers: { "Retry-After": String(burst.retryAfterSec) } }
     );
   }
-  const daily = rateLimit(`avatar:day:${ip}`, 60, 24 * 60 * 60_000);
-  if (!daily.ok) {
-    return NextResponse.json(
-      { error: "You've reached today's avatar limit — please try again tomorrow." },
-      { status: 429, headers: { "Retry-After": String(daily.retryAfterSec) } }
-    );
-  }
-
   const key = process.env.FAL_KEY;
   if (!key) {
-    // Free demo path — client stylizes locally.
+    // No model key → free local demo path, nothing to meter.
     return NextResponse.json({ demo: true });
+  }
+
+  // ---- generation limits (the real, paid pipeline) ------------------------
+  // Signed-in users are metered per ACCOUNT (free: lifetime total; premium:
+  // per-day). Anonymous users get a small per-IP taste and are nudged to sign
+  // in. Protects the model budget AND is the sign-in / upgrade trigger.
+  const userId = await userFromRequest(req);
+  const admin = getSupabaseAdmin();
+  let usage: UsageRow | null = null;
+
+  if (userId && admin) {
+    const isPremium = await readPremium(admin, userId);
+    usage = await readUsage(admin, userId);
+    if (isPremium) {
+      const usedToday = usage?.day === todayStr() ? usage.day_gens : 0;
+      if (usedToday >= AVATAR_GEN_LIMITS.premiumPerDay) {
+        return NextResponse.json(
+          { error: "You've hit today's generation limit — it resets tomorrow.", reason: "daily" },
+          { status: 402 }
+        );
+      }
+    } else if ((usage?.total_gens ?? 0) >= AVATAR_GEN_LIMITS.free) {
+      return NextResponse.json(
+        {
+          error: `You've used your ${AVATAR_GEN_LIMITS.free} free avatars. Upgrade to Premium for more.`,
+          reason: "upgrade",
+        },
+        { status: 402 }
+      );
+    }
+  } else {
+    // Anonymous, or billing not configured: tight per-IP daily backstop.
+    const anon = rateLimit(`avatar:anon:${ip}`, 5, 24 * 60 * 60_000);
+    if (!anon.ok) {
+      return NextResponse.json(
+        { error: "Sign in to keep generating avatars — it's free.", reason: "signin" },
+        { status: 402, headers: { "Retry-After": String(anon.retryAfterSec) } }
+      );
+    }
   }
 
   // "Keep as is" — no AI restyle, just cut the person out of their background
@@ -179,6 +276,7 @@ export async function POST(req: NextRequest) {
   if (shouldStylize === false) {
     try {
       const cutout = await removeBackground(key, image);
+      if (userId && admin) await recordGen(admin, userId, usage);
       return NextResponse.json({ image: cutout });
     } catch (e) {
       return NextResponse.json({ demo: true, note: String(e) });
@@ -220,6 +318,7 @@ export async function POST(req: NextRequest) {
         finalImage = stylized; // keep the stylized (with-bg) result if this fails
       }
     }
+    if (userId && admin) await recordGen(admin, userId, usage);
     return NextResponse.json({ image: finalImage });
   } catch (e) {
     // Fail soft to the free demo path rather than erroring the user.

@@ -101,7 +101,10 @@ export function buildPublicPayload(profile: Profile): Profile {
     visibility,
     theme: profile.theme,
     cardView: profile.cardView,
-    tier: "standard",
+    // Carry the owner's tier so the public page can honor premium perks —
+    // specifically, removing the "thisisme" branding. (Premium exposes no extra
+    // data; the field only drives cosmetics.)
+    tier: profile.tier,
     positions: profile.positions,
   };
 }

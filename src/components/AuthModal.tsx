@@ -69,6 +69,19 @@ export function AuthModal({ open, onClose, signInEmail, signInGoogle }: Props) {
                 </div>
               ) : (
                 <div className="mt-5 flex flex-col gap-3">
+                  {/* Google is the one-click path — lead with it. */}
+                  <button
+                    onClick={google}
+                    className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Continue with Google
+                  </button>
+
+                  <div className="flex items-center gap-3 py-1 text-xs text-fg-muted">
+                    <span className="h-px flex-1 bg-border" /> or{" "}
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+
                   <input
                     type="email"
                     value={email}
@@ -80,21 +93,9 @@ export function AuthModal({ open, onClose, signInEmail, signInGoogle }: Props) {
                   <button
                     onClick={sendLink}
                     disabled={status === "sending"}
-                    className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                    className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium transition hover:border-accent disabled:opacity-60"
                   >
                     {status === "sending" ? "Sending…" : "Email me a login link"}
-                  </button>
-
-                  <div className="flex items-center gap-3 py-1 text-xs text-fg-muted">
-                    <span className="h-px flex-1 bg-border" /> or{" "}
-                    <span className="h-px flex-1 bg-border" />
-                  </div>
-
-                  <button
-                    onClick={google}
-                    className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium transition hover:border-accent"
-                  >
-                    Continue with Google
                   </button>
 
                   {status === "error" && (

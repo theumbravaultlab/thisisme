@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProfile } from "@/lib/useProfile";
+import { getSupabase } from "@/lib/supabase";
+import { AuthModal } from "@/components/AuthModal";
 import {
   stylizeImage,
   shrinkDataUrl,
@@ -14,7 +16,7 @@ import {
   type AvatarPreset,
   type IntensityLevel,
 } from "@/lib/avatar";
-import { AVATAR_LIMITS } from "@/lib/types";
+import { AVATAR_LIMITS, AVATAR_GEN_LIMITS } from "@/lib/types";
 import { track } from "@/lib/analytics";
 
 export default function AvatarStudio() {
@@ -23,6 +25,8 @@ export default function AvatarStudio() {
     hydrated,
     user,
     startCheckout,
+    signInEmail,
+    signInGoogle,
     addToLibrary,
     setActiveAvatar,
     removeAvatar,
@@ -41,8 +45,19 @@ export default function AvatarStudio() {
   const [wasDemo, setWasDemo] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  // Anonymous "taste" counter — the free-without-signing-in allowance. Signed-in
+  // and premium limits are enforced authoritatively on the server.
+  const [anonGens, setAnonGens] = useState(0);
+  const [limitReason, setLimitReason] = useState<string | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAnonGens(Number(localStorage.getItem("thisisme:anonAvatarGens") || "0"));
+  }, []);
 
   const effectiveSource = source ?? (hydrated ? profile.data.photoDataUrl : null);
+  const anonBlocked = !user && anonGens >= AVATAR_GEN_LIMITS.anon;
 
   const choosePreset = (p: AvatarPreset) => {
     setPreset(p);
@@ -61,15 +76,32 @@ export default function AvatarStudio() {
 
   const generate = async () => {
     if (!effectiveSource) return;
+    // Anonymous taste used up → nudge to sign in before spending a request.
+    if (anonBlocked) {
+      setLimitReason("signin");
+      setError("You've used your free avatar. Sign in to generate more — it's free.");
+      setAuthOpen(true);
+      return;
+    }
     setBusy(true);
     setError(null);
+    setLimitReason(null);
     // Map the visible Low/Balanced/High stop to this style's hidden strength.
     const strength = preset.strengths[level];
     track("avatar_generate", { preset: preset.key, level });
     try {
+      // Attach the access token when signed in so the server can meter per
+      // account (free vs premium) rather than treating it as anonymous.
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (user) {
+        const {
+          data: { session },
+        } = (await getSupabase()?.auth.getSession()) ?? { data: { session: null } };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      }
       const res = await fetch("/api/avatar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           image: effectiveSource,
           prompt: preset.prompt,
@@ -81,12 +113,16 @@ export default function AvatarStudio() {
           stylize: preset.stylize,
         }),
       });
-      // Rate limit / oversized image / bad request come back as non-OK with an
-      // { error } message — surface it directly instead of silently falling
-      // through to the local demo filter (which would look like a success).
+      // 402 = generation limit hit (free used up / premium daily / anon → sign
+      // in). Other non-OK = rate limit / oversized / bad request. Surface the
+      // message instead of silently falling through to the local demo filter.
       if (!res.ok) {
-        const err = await res.json().catch(() => ({} as { error?: string }));
+        const err = await res
+          .json()
+          .catch(() => ({} as { error?: string; reason?: string }));
+        setLimitReason(err.reason ?? null);
         setError(err.error || "Couldn't generate — please try again.");
+        if (err.reason === "signin") setAuthOpen(true);
         return;
       }
       const data = await res.json();
@@ -111,6 +147,12 @@ export default function AvatarStudio() {
       const finalImage = await shrinkDataUrl(rawImage);
       setResult(finalImage);
       addToLibrary(finalImage); // auto-saved to the library (tier-capped)
+      // Count the anonymous taste locally (server meters signed-in accounts).
+      if (!user && data.image) {
+        const n = anonGens + 1;
+        setAnonGens(n);
+        localStorage.setItem("thisisme:anonAvatarGens", String(n));
+      }
     } catch {
       setError("Couldn't generate — please try again.");
     } finally {
@@ -261,6 +303,16 @@ export default function AvatarStudio() {
               : "Generate avatar"}
           </button>
 
+          {!busy && (
+            <p className="text-center text-xs text-fg-muted">
+              {premium
+                ? `Premium — up to ${AVATAR_GEN_LIMITS.premiumPerDay} generations a day.`
+                : user
+                ? `Free plan — ${AVATAR_GEN_LIMITS.free} avatars total, then upgrade for more.`
+                : `${Math.max(0, AVATAR_GEN_LIMITS.anon - anonGens)} free before signing in — sign in for ${AVATAR_GEN_LIMITS.free} total.`}
+            </p>
+          )}
+
           {result && (
             <button
               onClick={() => applyAndGoHome(result, "generated")}
@@ -271,6 +323,18 @@ export default function AvatarStudio() {
           )}
 
           {error && <p className="text-sm text-red-500">{error}</p>}
+
+          {limitReason === "upgrade" && (
+            <button
+              onClick={async () => {
+                const { error: e } = await startCheckout();
+                if (e) setError(e === "sign-in-required" ? "Sign in to upgrade." : e);
+              }}
+              className="rounded-xl bg-gradient-to-r from-amber-400 to-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              ✨ Upgrade to Premium — $9
+            </button>
+          )}
 
           {result && wasDemo && preset.stylize && (
             <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
@@ -360,16 +424,11 @@ export default function AvatarStudio() {
           <button
             onClick={async () => {
               if (!user) {
-                setError("Sign in on the home page to upgrade to Premium.");
+                setAuthOpen(true);
                 return;
               }
               const { error } = await startCheckout();
-              if (error)
-                setError(
-                  error === "sign-in-required"
-                    ? "Sign in on the home page to upgrade to Premium."
-                    : error
-                );
+              if (error) setError(error === "sign-in-required" ? "Sign in to upgrade." : error);
             }}
             className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
           >
@@ -382,6 +441,13 @@ export default function AvatarStudio() {
         Background removal + AI stylization need a connected image model. Without
         one, this applies a free color-filter preview instead.
       </p>
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        signInEmail={signInEmail}
+        signInGoogle={signInGoogle}
+      />
     </main>
   );
 }
