@@ -65,6 +65,44 @@ function ViewToggle({
   );
 }
 
+function ThemeToggle({
+  theme,
+  toggleTheme,
+  full = false,
+}: {
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+  full?: boolean;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Theme"
+      className={`inline-flex items-center rounded-full border border-border bg-bg-elev/60 p-0.5 text-xs ${
+        full ? "w-full" : ""
+      }`}
+    >
+      {(
+        [
+          ["light", "☀️ Light"],
+          ["dark", "🌙 Dark"],
+        ] as const
+      ).map(([key, label]) => (
+        <button
+          key={key}
+          onClick={() => theme !== key && toggleTheme()}
+          aria-pressed={theme === key}
+          className={`rounded-full px-2.5 py-1 font-medium transition ${full ? "flex-1" : ""} ${
+            theme === key ? "bg-accent text-white" : "text-fg-muted hover:text-fg"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Header({
   editing,
   setEditing,
@@ -125,14 +163,7 @@ export function Header({
               ✨ Upgrade
             </button>
           )}
-          <button
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-            title="Toggle light / dark"
-            className={btn}
-          >
-            {theme === "dark" ? "🌙" : "☀️"}
-          </button>
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
           <Link
             href="/avatar"
             onClick={onAvatarLinkClick}
@@ -199,9 +230,9 @@ export function Header({
                 {premium && (
                   <div className={`${menuItem} font-semibold text-amber-500`}>★ Premium</div>
                 )}
-                <button onClick={() => { toggleTheme(); closeMenu(); }} className={menuItem}>
-                  {theme === "dark" ? "🌙 Dark mode" : "☀️ Light mode"}
-                </button>
+                <div className="px-1 py-1.5">
+                  <ThemeToggle theme={theme} toggleTheme={toggleTheme} full />
+                </div>
                 {cloudEnabled &&
                   (userEmail ? (
                     <button onClick={() => { onSignOut(); closeMenu(); }} className={`${menuItem} items-start`}>

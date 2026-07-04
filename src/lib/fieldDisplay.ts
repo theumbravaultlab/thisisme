@@ -25,8 +25,11 @@ function introExtroLabel(v: number): string {
 
 export function fieldToText(field: FieldKey, data: ProfileData): string {
   switch (field) {
-    case "age":
-      return formatAge(data.birthYear, data.ageDisplayMode);
+    case "age": {
+      // A set birthday is the source of truth for age; fall back to birthYear.
+      const year = data.birthday ? Number(data.birthday.slice(0, 4)) : data.birthYear;
+      return formatAge(year, data.ageDisplayMode);
+    }
     case "birthday":
       return formatBirthday(data.birthday);
     case "zodiac":

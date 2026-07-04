@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import {
   FieldKey,
@@ -12,6 +13,7 @@ import {
   LOVE_LANGUAGE_OPTIONS,
   ENNEAGRAM_OPTIONS,
   PRONOUN_OPTIONS,
+  COLOR_PRESETS,
   FONT_OPTIONS,
   fontVar,
   zodiacFromBirthday,
@@ -39,9 +41,13 @@ function parseCm(s: string): number {
   return n ? Number(n[0]) : 178;
 }
 function formatHeight(cm: number): string {
-  const totalIn = cm / 2.54;
-  const ft = Math.floor(totalIn / 12);
-  const inch = Math.round(totalIn - ft * 12);
+  const totalIn = Math.round(cm / 2.54);
+  let ft = Math.floor(totalIn / 12);
+  let inch = totalIn - ft * 12;
+  if (inch === 12) {
+    ft += 1;
+    inch = 0;
+  }
   return `${ft}'${inch}" · ${cm} cm`;
 }
 
@@ -128,13 +134,21 @@ export function CardBody({ field, data, update, premium = false }: Props) {
               </button>
             ))}
           </div>
-          <Slider
-            min={1940}
-            max={CURRENT_YEAR}
-            value={data.birthYear ?? 1998}
-            onChange={(v) => update("birthYear", v)}
-            format={(v) => `${v} · age ${CURRENT_YEAR - v}`}
-          />
+          {data.birthday ? (
+            <p className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg-muted">
+              Age {CURRENT_YEAR - Number(data.birthday.slice(0, 4))} — calculated from your birthday.
+            </p>
+          ) : (
+            // Slider is in AGE (left = younger, right = older); we store the
+            // implied birth year under the hood.
+            <Slider
+              min={13}
+              max={100}
+              value={CURRENT_YEAR - (data.birthYear ?? 1998)}
+              onChange={(age) => update("birthYear", CURRENT_YEAR - age)}
+              format={(age) => `${age} years old`}
+            />
+          )}
         </div>
       );
 
@@ -150,16 +164,7 @@ export function CardBody({ field, data, update, premium = false }: Props) {
       );
 
     case "favoriteColor":
-      return (
-        <div className="flex flex-col items-center gap-3">
-          <HexColorPicker
-            color={data.favoriteColor}
-            onChange={(v) => update("favoriteColor", v)}
-            style={{ width: "100%" }}
-          />
-          <code className="rounded bg-bg px-2 py-1 text-sm">{data.favoriteColor}</code>
-        </div>
-      );
+      return <ColorField value={data.favoriteColor} onChange={(v) => update("favoriteColor", v)} />;
 
     case "pronouns":
       return (
@@ -291,4 +296,52 @@ export function CardBody({ field, data, update, premium = false }: Props) {
       );
     }
   }
+}
+
+// Color picker with a "Simple" (popular swatches) and "Hex" (full picker) mode.
+function ColorField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const isPreset = COLOR_PRESETS.some((c) => c.hex.toLowerCase() === value.toLowerCase());
+  const [mode, setMode] = useState<"simple" | "hex">(isPreset ? "simple" : "hex");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2">
+        {(["simple", "hex"] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={`flex-1 rounded-lg border px-3 py-1.5 text-sm transition ${
+              mode === m ? "border-accent bg-accent/15 text-fg" : "border-border text-fg-muted"
+            }`}
+          >
+            {m === "simple" ? "Simple" : "Hex"}
+          </button>
+        ))}
+      </div>
+
+      {mode === "simple" ? (
+        <div className="grid grid-cols-8 gap-2">
+          {COLOR_PRESETS.map((c) => (
+            <button
+              key={c.hex}
+              title={c.name}
+              aria-label={c.name}
+              onClick={() => onChange(c.hex)}
+              style={{ background: c.hex }}
+              className={`aspect-square rounded-full ring-2 transition ${
+                value.toLowerCase() === c.hex.toLowerCase()
+                  ? "ring-accent"
+                  : "ring-border/40 hover:ring-border"
+              }`}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-3">
+          <HexColorPicker color={value} onChange={onChange} style={{ width: "100%" }} />
+          <code className="rounded bg-bg px-2 py-1 text-sm">{value}</code>
+        </div>
+      )}
+    </div>
+  );
 }

@@ -172,7 +172,9 @@ export function ProfileHud({
     return () => window.removeEventListener("resize", check);
   }, []);
   const geom = mobile ? MOBILE_GEOM : DESKTOP_GEOM;
-  const canDrag = interactive && !mobile;
+  // Cards are draggable everywhere (the mobile stage fits the screen, so drag
+  // no longer fights vertical scrolling).
+  const canDrag = interactive;
 
   const visible = getHudCards(profile);
 
@@ -226,15 +228,11 @@ export function ProfileHud({
   };
 
   const cardWidth: CardView = profile.cardView;
-  // On phones the stage grows with the number of cards so the small avatar and
-  // all its surrounding cards fit without overlap (scrolls vertically if needed).
-  const mobileStageH = Math.max(560, 200 + visible.length * 150);
 
   return (
     <div
       ref={stageRef}
-      className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-[2rem] border border-border bg-bg-elev/20 sm:h-[80vh] sm:min-h-[600px]"
-      style={mobile ? { height: mobileStageH } : undefined}
+      className="relative mx-auto h-[calc(100dvh-150px)] min-h-[440px] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-border bg-bg-elev/20 sm:h-[80vh] sm:min-h-[600px]"
     >
       <CosmicBackdrop />
 
@@ -264,7 +262,7 @@ export function ProfileHud({
       <div
         className={
           mobile
-            ? "absolute left-1/2 top-1/2 z-10 aspect-square h-[190px] -translate-x-1/2 -translate-y-1/2"
+            ? "absolute left-1/2 top-1/2 z-10 aspect-square h-[140px] -translate-x-1/2 -translate-y-1/2"
             : "absolute inset-0 z-10"
         }
       >

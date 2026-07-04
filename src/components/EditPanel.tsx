@@ -10,6 +10,7 @@ import {
   CustomField,
   CustomCategory,
   customFieldCardKey,
+  VISIBILITY_PRESETS,
 } from "@/lib/types";
 import { getCategories, type CategorySpec, type Row } from "@/lib/hudCards";
 import { CardBody } from "./CardBody";
@@ -23,6 +24,7 @@ interface Props {
   onUpgrade: () => void;
   update: <K extends keyof ProfileData>(key: K, value: ProfileData[K]) => void;
   toggleVisibility: (key: FieldKey) => void;
+  applyPreset: (fields: FieldKey[]) => void;
   addCustomField: (categoryKey: string) => string;
   updateCustomField: (id: string, patch: Partial<CustomField>) => void;
   removeCustomField: (id: string) => void;
@@ -50,6 +52,7 @@ export function EditPanel({
   onUpgrade,
   update,
   toggleVisibility,
+  applyPreset,
   addCustomField,
   updateCustomField,
   removeCustomField,
@@ -147,8 +150,28 @@ export function EditPanel({
               </button>
             </div>
 
+            {/* One-tap presets — a fast way to set a whole vibe at once. */}
+            <div className="border-b border-border px-4 pb-3 pt-3">
+              <p className="mb-2 text-xs font-medium text-fg-muted">
+                Quick start — pick a preset, then fine-tune below
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {VISIBILITY_PRESETS.map((preset) => (
+                  <button
+                    key={preset.key}
+                    onClick={() => applyPreset(preset.fields)}
+                    title={preset.desc}
+                    className="flex flex-col items-center gap-0.5 rounded-xl border border-border px-2 py-2 text-center text-xs transition hover:border-accent hover:bg-accent/5"
+                  >
+                    <span className="text-base">{preset.emoji}</span>
+                    <span className="font-medium leading-tight">{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <p className="px-4 pt-3 text-xs text-fg-muted">
-              Tap a section to expand. Toggle a stat to show it on your profile.
+              Or toggle individual stats on and off below.
             </p>
 
             {/* Name is pinned here, always visible and always expanded —

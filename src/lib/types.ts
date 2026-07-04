@@ -254,7 +254,7 @@ export const CATEGORIES: { title: string; emoji: string; fields: FieldKey[] }[] 
     title: "Identity",
     emoji: "🪪",
     fields: [
-      "name", "age", "birthday", "zodiac", "pronouns",
+      "name", "birthday", "age", "zodiac", "pronouns",
       "height", "basedIn", "languages", "whatIDo", "favoriteColor",
     ],
   },
@@ -391,6 +391,68 @@ export const PRONOUN_OPTIONS = [
   "he/they",
   "any pronouns",
   "ask me",
+];
+
+// Popular colors for the "Simple" color picker (name shown on hover).
+export const COLOR_PRESETS: { hex: string; name: string }[] = [
+  { hex: "#ef4444", name: "Red" },
+  { hex: "#f97316", name: "Orange" },
+  { hex: "#f59e0b", name: "Amber" },
+  { hex: "#eab308", name: "Yellow" },
+  { hex: "#22c55e", name: "Green" },
+  { hex: "#14b8a6", name: "Teal" },
+  { hex: "#06b6d4", name: "Cyan" },
+  { hex: "#3b82f6", name: "Blue" },
+  { hex: "#7c5cff", name: "Violet" },
+  { hex: "#a855f7", name: "Purple" },
+  { hex: "#ec4899", name: "Pink" },
+  { hex: "#f43f5e", name: "Rose" },
+  { hex: "#8b5e34", name: "Brown" },
+  { hex: "#64748b", name: "Slate" },
+  { hex: "#111827", name: "Black" },
+  { hex: "#f8fafc", name: "White" },
+];
+
+// One-tap visibility presets — turn a curated set of fields on and everything
+// else off, so a fresh user isn't overwhelmed by every stat.
+export const VISIBILITY_PRESETS: {
+  key: string;
+  label: string;
+  desc: string;
+  emoji: string;
+  fields: FieldKey[];
+}[] = [
+  {
+    key: "connect",
+    label: "Connect",
+    emoji: "🤝",
+    desc: "Professional — just the essentials to reach you.",
+    fields: ["whatIDo", "basedIn", "languages", "email", "phone", "linkedin", "website", "instagram"],
+  },
+  {
+    key: "intro",
+    label: "Get to Know Me",
+    emoji: "👋",
+    desc: "A friendly intro for someone you just met.",
+    fields: [
+      "birthday", "age", "basedIn", "whatIDo", "mindset", "favoriteAnimal",
+      "loveLanguage", "hobbies", "favoriteFood", "comfortShow", "currentlyObsessed",
+      "pets", "instagram",
+    ],
+  },
+  {
+    key: "unfiltered",
+    label: "Unfiltered",
+    emoji: "🙃",
+    desc: "TMI — all the personality and favorites.",
+    fields: [
+      "mindset", "introExtro", "favoriteAnimal", "loveLanguage", "enneagram",
+      "toxicTrait", "romanEmpire", "greenFlag", "redFlag", "hottestTake",
+      "relationshipStatus", "currentlyObsessed", "pets", "bucketList",
+      "comfortShow", "spotifyTopSongs", "hobbies", "favoriteFood", "favoriteBook",
+      "guiltyPleasure", "favoriteGame", "favoriteSportsTeam", "favoriteDrink", "favoriteSeason",
+    ],
+  },
 ];
 
 // Zodiac sign (with glyph) computed from a YYYY-MM-DD birthday. Empty if unset.

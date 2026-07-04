@@ -39,6 +39,7 @@ export default function Home() {
     dismissAuthError,
     updateData,
     toggleVisibility,
+    applyVisibilityPreset,
     toggleTheme,
     toggleCardView,
     refreshEntitlement,
@@ -258,7 +259,7 @@ export default function Home() {
         </div>
       )}
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 py-4">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 py-2 sm:py-4">
         <NameTitle name={hydrated ? displayName : ""} font={profile.data.nameFont} />
 
         {(!hydrated || switchingView) && <HudSkeleton />}
@@ -300,6 +301,7 @@ export default function Home() {
         onUpgrade={upgrade}
         update={updateData}
         toggleVisibility={toggleVisibility}
+        applyPreset={applyVisibilityPreset}
         addCustomField={addCustomField}
         updateCustomField={updateCustomField}
         removeCustomField={removeCustomField}
@@ -349,7 +351,7 @@ export default function Home() {
       <SaveIndicator status={saveStatus} signedIn={!!user} />
       <Toast toast={toast} onDismiss={() => setToast(null)} />
 
-      <footer className="border-t border-border px-4 py-4 text-center text-sm text-fg-muted">
+      <footer className="border-t border-border px-4 py-2 text-center text-[11px] text-fg-muted sm:py-4 sm:text-sm">
         {/* premium removes the "thisisme" branding */}
         {premium
           ? user

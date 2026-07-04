@@ -218,6 +218,19 @@ export function useProfile() {
     }));
   }, []);
 
+  // Apply a one-tap preset: show exactly `fields` (+ always name), hide the
+  // rest. Premium-only fields are never auto-enabled here.
+  const applyVisibilityPreset = useCallback((fields: FieldKey[]) => {
+    setProfile((p) => {
+      const on = new Set<FieldKey>([...fields, "name"]);
+      const visibility = {} as Profile["visibility"];
+      (Object.keys(p.visibility) as FieldKey[]).forEach((k) => {
+        visibility[k] = on.has(k);
+      });
+      return { ...p, visibility };
+    });
+  }, []);
+
   const toggleTheme = useCallback(() => {
     setProfile((p) => ({ ...p, theme: p.theme === "dark" ? "light" : "dark" }));
   }, []);
@@ -493,6 +506,7 @@ export function useProfile() {
     dismissAuthError: () => setAuthError(null),
     updateData,
     toggleVisibility,
+    applyVisibilityPreset,
     toggleTheme,
     toggleCardView,
     refreshEntitlement,
