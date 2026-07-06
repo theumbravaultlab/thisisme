@@ -35,7 +35,8 @@ export function Welcome({
             <div className="text-5xl">👋</div>
             <h2 className="mt-3 text-2xl font-semibold">Welcome to thisisme</h2>
             <p className="mt-1 text-sm text-fg-muted">
-              Build a profile that shows the real you. It takes about a minute.
+              What you&apos;re seeing is a demo. Start with a blank profile and
+              make it yours — it takes about a minute.
             </p>
 
             <ol className="mx-auto mt-5 flex max-w-xs flex-col gap-3 text-left text-sm">
@@ -57,13 +58,13 @@ export function Welcome({
               onClick={onStart}
               className="mt-6 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
             >
-              Start building
+              Start fresh
             </button>
             <button
               onClick={onSkip}
               className="mt-2 w-full py-1 text-xs text-fg-muted transition hover:text-fg"
             >
-              I&apos;ll explore on my own
+              Explore the demo first
             </button>
           </motion.div>
         </>

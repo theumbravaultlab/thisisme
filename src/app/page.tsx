@@ -16,6 +16,7 @@ import { Welcome } from "@/components/Welcome";
 import { Toast, type ToastState } from "@/components/Toast";
 import { LegalFooterLinks } from "@/components/LegalFooterLinks";
 import { useProfile } from "@/lib/useProfile";
+import { DEFAULT_PROFILE } from "@/lib/store";
 import { track } from "@/lib/analytics";
 import { countHiddenSections, type HudCardSpec } from "@/lib/hudCards";
 import type { FieldKey } from "@/lib/types";
@@ -45,6 +46,7 @@ export default function Home() {
     applyVisibilityPreset,
     toggleTheme,
     toggleCardView,
+    startFresh,
     refreshEntitlement,
     startCheckout,
     saveSnapshot,
@@ -73,6 +75,15 @@ export default function Home() {
   } = useProfile();
 
   const premium = profile.tier === "premium";
+
+  // The untouched seeded demo (signed out, nothing added yet) — the only state
+  // in which it's safe to auto-clear on "Start fresh" without destroying work.
+  const isPristineDemo =
+    !user &&
+    profile.data.name === DEFAULT_PROFILE.data.name &&
+    !profile.data.photoDataUrl &&
+    profile.data.customFields.length === 0 &&
+    profile.data.avatars.length === 0;
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -108,15 +119,15 @@ export default function Home() {
     };
   }, []);
 
-  // first-run welcome (once)
+  // First-run welcome (once). Only shown to a signed-out visitor still on the
+  // untouched demo, so "Start fresh" can safely clear it — a returning user or
+  // anyone who has started editing never sees it.
   useEffect(() => {
     if (!hydrated) return;
     const welcomed = localStorage.getItem("thisisme:welcomed");
-    const firstRun =
-      profile.data.name === "Your Name" && !profile.data.photoDataUrl;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!welcomed && firstRun) setShowWelcome(true);
-  }, [hydrated, profile.data.name, profile.data.photoDataUrl]);
+    if (!welcomed && isPristineDemo) setShowWelcome(true);
+  }, [hydrated, isPristineDemo]);
 
   const dismissWelcome = () => {
     localStorage.setItem("thisisme:welcomed", "1");
@@ -386,9 +397,11 @@ export default function Home() {
         open={showWelcome}
         onStart={() => {
           dismissWelcome();
+          startFresh(); // clear the demo to a blank canvas
+          track("welcome_start_fresh");
           setPanelOpen(true);
         }}
-        onSkip={dismissWelcome}
+        onSkip={dismissWelcome} // keep the demo to explore
       />
 
       <SaveIndicator status={saveStatus} signedIn={!!user} />

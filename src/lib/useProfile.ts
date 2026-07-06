@@ -13,6 +13,7 @@ import {
 } from "./types";
 import {
   DEFAULT_PROFILE,
+  blankProfileData,
   loadProfile,
   saveProfile,
   loadProfileCloud,
@@ -238,6 +239,12 @@ export function useProfile() {
 
   const toggleTheme = useCallback(() => {
     setProfile((p) => ({ ...p, theme: p.theme === "dark" ? "light" : "dark" }));
+  }, []);
+
+  // Clear the seeded demo to a blank canvas for a new user starting from
+  // scratch. Keeps the default visibility preset; resets any card positions.
+  const startFresh = useCallback(() => {
+    setProfile((p) => ({ ...p, data: blankProfileData(), positions: {} }));
   }, []);
 
   const toggleCardView = useCallback(() => {
@@ -620,6 +627,7 @@ export function useProfile() {
     applyVisibilityPreset,
     toggleTheme,
     toggleCardView,
+    startFresh,
     refreshEntitlement,
     startCheckout,
     addToLibrary,

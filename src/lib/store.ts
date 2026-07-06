@@ -150,6 +150,70 @@ export const DEFAULT_PROFILE: Profile = {
   tier: "standard",
 };
 
+// A fresh, empty profile for a new user who chooses to start from scratch: the
+// structural defaults of DEFAULT_PROFILE with all the demo *content* cleared.
+// Visibility stays at the default "Get to Know Me" preset, so empty cards just
+// stay hidden until the user fills them in.
+export function blankProfileData(): ProfileData {
+  return {
+    ...DEFAULT_PROFILE.data,
+    name: "",
+    photoDataUrl: null,
+    birthYear: null,
+    birthday: "",
+    height: "",
+    favoriteColor: "#7c5cff",
+    pronouns: "",
+    basedIn: "",
+    languages: "",
+    whatIDo: "",
+    mindset: "",
+    introExtro: 50,
+    favoriteAnimal: "",
+    loveLanguage: "",
+    enneagram: "",
+    toxicTrait: "",
+    romanEmpire: "",
+    greenFlag: "",
+    redFlag: "",
+    hottestTake: "",
+    relationshipStatus: "",
+    religion: "",
+    bibleVerse: "",
+    achievements: [],
+    currentlyObsessed: "",
+    pets: "",
+    bucketList: [],
+    bornIn: "",
+    education: "",
+    cause: "",
+    comfortShow: "",
+    spotifyTopSongs: [],
+    hobbies: [],
+    favoriteFood: "",
+    favoriteBook: "",
+    guiltyPleasure: "",
+    favoriteGame: "",
+    favoriteSportsTeam: "",
+    favoriteDrink: "",
+    favoriteSeason: "",
+    phone: "",
+    email: "",
+    instagram: "",
+    tiktok: "",
+    snapchat: "",
+    twitter: "",
+    linkedin: "",
+    youtube: "",
+    twitch: "",
+    discord: "",
+    website: "",
+    avatars: [],
+    customFields: [],
+    customCategories: [],
+  };
+}
+
 export function loadProfile(): Profile {
   if (typeof window === "undefined") return DEFAULT_PROFILE;
   try {
