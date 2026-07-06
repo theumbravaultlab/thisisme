@@ -6,6 +6,7 @@ import { ProfileHud } from "@/components/ProfileHud";
 import { EditPanel } from "@/components/EditPanel";
 import { NameTitle } from "@/components/NameTitle";
 import { AuthModal } from "@/components/AuthModal";
+import { AccountModal } from "@/components/AccountModal";
 import { ShareModal } from "@/components/ShareModal";
 import { UsernameModal } from "@/components/UsernameModal";
 import { VersionHistoryModal } from "@/components/VersionHistoryModal";
@@ -66,12 +67,15 @@ export default function Home() {
     signInEmail,
     signInGoogle,
     signOut,
+    exportData,
+    deleteAccount,
   } = useProfile();
 
   const premium = profile.tier === "premium";
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [usernameOpen, setUsernameOpen] = useState(false);
   const [versionOpen, setVersionOpen] = useState(false);
@@ -231,7 +235,7 @@ export default function Home() {
         cloudEnabled={cloudEnabled}
         userEmail={user?.email ?? null}
         onSignIn={() => setAuthOpen(true)}
-        onSignOut={signOut}
+        onOpenAccount={() => setAccountOpen(true)}
         cardView={profile.cardView}
         onToggleCardView={handleToggleCardView}
         premium={premium}
@@ -345,6 +349,16 @@ export default function Home() {
         onClose={() => setAuthOpen(false)}
         signInEmail={signInEmail}
         signInGoogle={signInGoogle}
+      />
+
+      <AccountModal
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        email={user?.email ?? null}
+        premium={premium}
+        onExport={exportData}
+        onDeleteAccount={deleteAccount}
+        onSignOut={signOut}
       />
 
       <ShareModal

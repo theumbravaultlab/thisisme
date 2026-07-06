@@ -11,7 +11,15 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 interface LsWebhook {
   meta?: { event_name?: string; custom_data?: { user_id?: string } };
-  data?: { id?: string | number; attributes?: { status?: string } };
+  data?: {
+    id?: string | number;
+    attributes?: {
+      status?: string;
+      // The purchased line item — used to confirm this order is for OUR
+      // premium product before granting premium.
+      first_order_item?: { variant_id?: string | number };
+    };
+  };
 }
 
 function verify(raw: string, signature: string, secret: string): boolean {
@@ -53,6 +61,17 @@ export async function POST(req: NextRequest) {
   const grant = eventName === "order_created";
   const revoke = eventName === "order_refunded";
   if (!grant && !revoke) return NextResponse.json({ ok: true, note: `ignored ${eventName}` });
+
+  // Only OUR premium product may flip premium. If the store ever sells anything
+  // else, that order carries a different variant_id and is ignored here — so a
+  // purchase of some other product can never unlock premium. When the variant
+  // can't be read from the payload we proceed (avoids breaking a real purchase
+  // if LS ever changes the shape); when it's present it MUST match.
+  const configuredVariant = process.env.LEMONSQUEEZY_VARIANT_ID;
+  const orderVariant = evt.data?.attributes?.first_order_item?.variant_id;
+  if (configuredVariant && orderVariant != null && String(orderVariant) !== configuredVariant) {
+    return NextResponse.json({ ok: true, note: `ignored variant ${orderVariant}` });
+  }
 
   const { error } = await admin.from("entitlements").upsert(
     {

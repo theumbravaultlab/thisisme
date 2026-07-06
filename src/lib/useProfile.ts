@@ -545,6 +545,67 @@ export function useProfile() {
     await getSupabase()?.auth.signOut();
   }, []);
 
+  // ---- account: data export + deletion (GDPR/CCPA) -------------------------
+  // Download everything the user has entered as a single JSON file. Works
+  // signed in or out — it just serializes the currently-loaded profile.
+  const exportData = useCallback(() => {
+    const payload = {
+      app: "thisisme",
+      exportedAt: new Date().toISOString(),
+      account: { email: user?.email ?? null, tier: profile.tier },
+      profile: {
+        data: profile.data,
+        visibility: profile.visibility,
+        positions: profile.positions,
+        theme: profile.theme,
+        cardView: profile.cardView,
+      },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = `thisisme-${profile.data.username || "profile"}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(href);
+  }, [user, profile]);
+
+  // Permanently delete the account + all server data (via /api/account/delete,
+  // which cascades), then wipe local traces and sign out. Irreversible.
+  const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
+    const supabase = getSupabase();
+    if (!supabase || !user) return { error: "You're not signed in." };
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return { error: "You're not signed in." };
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        return { error: j.error || "Couldn't delete your account. Please try again." };
+      }
+      // Clear every local trace so nothing of the deleted account lingers.
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith("thisisme:"))
+          .forEach((k) => localStorage.removeItem(k));
+      } catch {
+        /* ignore */
+      }
+      await supabase.auth.signOut().catch(() => {});
+      return { error: null };
+    } catch {
+      return { error: "Couldn't delete your account. Please try again." };
+    }
+  }, [user]);
+
   return {
     profile,
     hydrated,
@@ -585,5 +646,7 @@ export function useProfile() {
     signInEmail,
     signInGoogle,
     signOut,
+    exportData,
+    deleteAccount,
   };
 }

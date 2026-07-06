@@ -12,7 +12,7 @@ interface Props {
   cloudEnabled: boolean;
   userEmail: string | null;
   onSignIn: () => void;
-  onSignOut: () => void;
+  onOpenAccount: () => void;
   cardView: CardView;
   onToggleCardView: () => void;
   premium: boolean;
@@ -111,7 +111,7 @@ export function Header({
   cloudEnabled,
   userEmail,
   onSignIn,
-  onSignOut,
+  onOpenAccount,
   cardView,
   onToggleCardView,
   premium,
@@ -182,8 +182,8 @@ export function Header({
           </button>
           {cloudEnabled &&
             (userEmail ? (
-              <button onClick={onSignOut} title={userEmail} aria-label={`Sign out (${userEmail})`} className={btn}>
-                Sign out
+              <button onClick={onOpenAccount} title={userEmail} aria-label={`Account (${userEmail})`} className={btn}>
+                👤 Account
               </button>
             ) : (
               <button onClick={onSignIn} className={btn}>
@@ -235,10 +235,10 @@ export function Header({
                 </div>
                 {cloudEnabled &&
                   (userEmail ? (
-                    <button onClick={() => { onSignOut(); closeMenu(); }} className={`${menuItem} items-start`}>
-                      <span className="leading-6">🚪</span>
+                    <button onClick={() => { onOpenAccount(); closeMenu(); }} className={`${menuItem} items-start`}>
+                      <span className="leading-6">👤</span>
                       <span className="flex min-w-0 flex-col">
-                        <span>Sign out</span>
+                        <span>Account</span>
                         <span className="truncate text-xs text-fg-muted">{userEmail}</span>
                       </span>
                     </button>
