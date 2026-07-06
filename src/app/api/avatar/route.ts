@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 import sharp from "sharp";
 import { paleTint } from "@/lib/color";
 import { rateLimit } from "@/lib/rateLimit";
@@ -16,6 +17,51 @@ interface UsageRow {
 }
 
 const monthStr = () => new Date().toISOString().slice(0, 7); // YYYY-MM
+const todayStr = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+// Per-IP daily backstop for anonymous generations (catches localStorage resets).
+const ANON_IP_DAILY = 5;
+
+const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
+
+// Atomic monthly claim via Postgres (a row lock serializes concurrent requests,
+// closing the check-then-count race). "ok" = counted, "over" = cap reached,
+// "fallback" = the RPC isn't available yet (migration not applied).
+async function claimMonthlyGen(
+  admin: SupabaseClient,
+  userId: string,
+  month: string,
+  cap: number
+): Promise<"ok" | "over" | "fallback"> {
+  const { data, error } = await admin.rpc("claim_avatar_gen", {
+    p_user_id: userId,
+    p_month: month,
+    p_cap: cap,
+  });
+  if (error) return "fallback";
+  return data ? "ok" : "over";
+}
+
+// Hand a claimed generation back when the render ultimately fails.
+async function releaseMonthlyGen(admin: SupabaseClient, userId: string, month: string): Promise<void> {
+  await admin.rpc("release_avatar_gen", { p_user_id: userId, p_month: month });
+}
+
+// Atomic per-IP daily claim (shared across serverless instances).
+async function claimIpGen(
+  admin: SupabaseClient,
+  ipHash: string,
+  day: string,
+  cap: number
+): Promise<"ok" | "over" | "fallback"> {
+  const { data, error } = await admin.rpc("claim_ip_gen", {
+    p_ip_hash: ipHash,
+    p_day: day,
+    p_cap: cap,
+  });
+  if (error) return "fallback";
+  return data ? "ok" : "over";
+}
 
 // Resolve the signed-in user (if any) from their Supabase access token. Anon
 // requests just return null and fall back to the per-IP taste limit.
@@ -246,40 +292,64 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ---- monthly generation limits (the real, paid stylize pipeline) --------
-  // Signed-in users are metered per ACCOUNT with a monthly allowance that
-  // resets each calendar month (free vs premium cap). Anonymous users get a
-  // small per-IP taste and are nudged to sign in. Protects the model budget
-  // AND is the sign-in / upgrade trigger.
+  // ---- monthly generation limits (atomic + shared-store) ------------------
+  // Signed-in users are metered per ACCOUNT with a monthly allowance (free vs
+  // premium cap); anonymous users get a small per-IP daily taste and are nudged
+  // to sign in. Claims are atomic in Postgres so concurrent requests can't race
+  // past the cap, and the per-IP counter is shared across every instance.
   const userId = await userFromRequest(req);
   const admin = getSupabaseAdmin();
-  let usage: UsageRow | null = null;
+  const month = monthStr();
+
+  // Set when this request consumed a per-account credit that must be handed
+  // back if the generation ultimately fails; and the legacy record-on-success
+  // path used only when the atomic RPC isn't available yet.
+  let onFailRefund: (() => Promise<void>) | null = null;
+  let legacyUsage: UsageRow | null = null;
+  let legacyRecord = false;
+
+  const overMonthly = (isPremium: boolean) =>
+    NextResponse.json(
+      isPremium
+        ? { error: "You've hit this month's generation limit — it resets next month.", reason: "monthly" }
+        : {
+            error: `You've used your ${AVATAR_GEN_LIMITS.freePerMonth} free avatars this month. Upgrade to Premium for more.`,
+            reason: "upgrade",
+          },
+      { status: 402 }
+    );
+  const anonBlocked = () =>
+    NextResponse.json(
+      { error: "Sign in to keep generating avatars — it's free.", reason: "signin" },
+      { status: 402 }
+    );
 
   if (userId && admin) {
     const isPremium = await readPremium(admin, userId);
-    usage = await readUsage(admin, userId);
-    const usedThisMonth = usage?.month === monthStr() ? usage.month_gens : 0;
     const cap = isPremium ? AVATAR_GEN_LIMITS.premiumPerMonth : AVATAR_GEN_LIMITS.freePerMonth;
-    if (usedThisMonth >= cap) {
-      return NextResponse.json(
-        isPremium
-          ? { error: "You've hit this month's generation limit — it resets next month.", reason: "monthly" }
-          : {
-              error: `You've used your ${AVATAR_GEN_LIMITS.freePerMonth} free avatars this month. Upgrade to Premium for more.`,
-              reason: "upgrade",
-            },
-        { status: 402 }
-      );
+    const claim = await claimMonthlyGen(admin, userId, month, cap);
+    if (claim === "over") return overMonthly(isPremium);
+    if (claim === "ok") {
+      onFailRefund = () => releaseMonthlyGen(admin, userId, month);
+    } else {
+      // Fallback (RPC not present yet): non-atomic check + record-on-success.
+      legacyUsage = await readUsage(admin, userId);
+      const used = legacyUsage?.month === month ? legacyUsage.month_gens : 0;
+      if (used >= cap) return overMonthly(isPremium);
+      legacyRecord = true;
+    }
+  } else if (admin) {
+    // Anonymous with a configured backend: shared per-IP daily backstop.
+    const claim = await claimIpGen(admin, sha256(ip), todayStr(), ANON_IP_DAILY);
+    if (claim === "over") return anonBlocked();
+    if (claim === "fallback") {
+      const anon = rateLimit(`avatar:anon:${ip}`, ANON_IP_DAILY, 24 * 60 * 60_000);
+      if (!anon.ok) return anonBlocked();
     }
   } else {
-    // Anonymous, or billing not configured: tight per-IP daily backstop.
-    const anon = rateLimit(`avatar:anon:${ip}`, 5, 24 * 60 * 60_000);
-    if (!anon.ok) {
-      return NextResponse.json(
-        { error: "Sign in to keep generating avatars — it's free.", reason: "signin" },
-        { status: 402, headers: { "Retry-After": String(anon.retryAfterSec) } }
-      );
-    }
+    // No backend configured (e.g. local without a service key): in-memory only.
+    const anon = rateLimit(`avatar:anon:${ip}`, ANON_IP_DAILY, 24 * 60 * 60_000);
+    if (!anon.ok) return anonBlocked();
   }
 
   try {
@@ -317,10 +387,12 @@ export async function POST(req: NextRequest) {
         finalImage = stylized; // keep the stylized (with-bg) result if this fails
       }
     }
-    if (userId && admin) await recordGen(admin, userId, usage);
+    if (legacyRecord && userId && admin) await recordGen(admin, userId, legacyUsage);
     return NextResponse.json({ image: finalImage });
   } catch (e) {
-    // Fail soft to the free demo path rather than erroring the user.
+    // The render failed after we claimed a credit — give it back so a failed
+    // attempt doesn't count against the user, then fail soft to the demo path.
+    if (onFailRefund) await onFailRefund().catch(() => {});
     return NextResponse.json({ demo: true, note: String(e) });
   }
 }
