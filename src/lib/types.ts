@@ -15,12 +15,15 @@ export type Tier = "standard" | "premium";
 // How many generated avatars each tier keeps in the library.
 export const AVATAR_LIMITS: Record<Tier, number> = { standard: 3, premium: 20 };
 
-// How many avatar GENERATIONS each stage gets (avatars cost real money to make,
-// so this both protects the API budget and is the natural upgrade trigger):
-//   anon          — a taste before sign-in (client-gated; per-IP backstop)
-//   free          — lifetime total for a signed-in free account (server-gated)
-//   premiumPerDay — per-day cap for premium (feels unlimited, bounds cost)
-export const AVATAR_GEN_LIMITS = { anon: 1, free: 3, premiumPerDay: 30 } as const;
+// How many STYLIZED avatar generations each stage gets (each one is a real
+// fal.ai cost, so this both protects the API budget and is the natural upgrade
+// trigger). "Keep as is" (pure background removal) is cheap and NOT metered —
+// it's unlimited on every tier.
+//   anon            — one taste before sign-in (client-gated; per-IP backstop)
+//   freePerMonth    — signed-in free account, resets each calendar month
+//   premiumPerMonth — premium, resets each calendar month (abundant, but the
+//                     monthly cap keeps a one-time $9 from going underwater)
+export const AVATAR_GEN_LIMITS = { anon: 1, freePerMonth: 3, premiumPerMonth: 20 } as const;
 
 // A premium-only user-defined stat, e.g. "Favorite Fruit".
 export interface CustomField {

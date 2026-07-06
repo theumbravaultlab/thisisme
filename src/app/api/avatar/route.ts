@@ -7,13 +7,15 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AVATAR_GEN_LIMITS } from "@/lib/types";
 
 // ---- per-account generation metering ----------------------------------------
+// Metering is MONTHLY: both free and premium get an allowance that resets each
+// calendar month (see AVATAR_GEN_LIMITS). Only real stylized generations count;
+// "Keep as is" is cheap and never metered.
 interface UsageRow {
-  total_gens: number;
-  day: string | null;
-  day_gens: number;
+  month: string | null; // 'YYYY-MM' the count below is for
+  month_gens: number;
 }
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const monthStr = () => new Date().toISOString().slice(0, 7); // YYYY-MM
 
 // Resolve the signed-in user (if any) from their Supabase access token. Anon
 // requests just return null and fall back to the per-IP taste limit.
@@ -47,22 +49,21 @@ async function readPremium(admin: SupabaseClient, userId: string): Promise<boole
 async function readUsage(admin: SupabaseClient, userId: string): Promise<UsageRow | null> {
   const { data } = await admin
     .from("avatar_usage")
-    .select("total_gens, day, day_gens")
+    .select("month, month_gens")
     .eq("user_id", userId)
     .maybeSingle();
   return (data as UsageRow) ?? null;
 }
 
-// Record one successful, real (non-demo) generation against the account.
+// Record one successful, real (stylized) generation against this month's count.
 async function recordGen(admin: SupabaseClient, userId: string, usage: UsageRow | null): Promise<void> {
-  const today = todayStr();
-  const dayGens = (usage?.day === today ? usage.day_gens : 0) + 1;
+  const month = monthStr();
+  const monthGens = (usage?.month === month ? usage.month_gens : 0) + 1;
   await admin.from("avatar_usage").upsert(
     {
       user_id: userId,
-      total_gens: (usage?.total_gens ?? 0) + 1,
-      day: today,
-      day_gens: dayGens,
+      month,
+      month_gens: monthGens,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }
@@ -231,10 +232,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ demo: true });
   }
 
-  // ---- generation limits (the real, paid pipeline) ------------------------
-  // Signed-in users are metered per ACCOUNT (free: lifetime total; premium:
-  // per-day). Anonymous users get a small per-IP taste and are nudged to sign
-  // in. Protects the model budget AND is the sign-in / upgrade trigger.
+  // "Keep as is" — no AI restyle, just cut the person out of their background
+  // and return the clean original. This is cheap, so it's UNLIMITED on every
+  // tier: never metered, never blocked by the quota (only the per-IP burst
+  // limit above applies). Returns { demo: true } on failure so the client can
+  // fall back to the untouched photo.
+  if (shouldStylize === false) {
+    try {
+      const cutout = await removeBackground(key, image);
+      return NextResponse.json({ image: cutout });
+    } catch (e) {
+      return NextResponse.json({ demo: true, note: String(e) });
+    }
+  }
+
+  // ---- monthly generation limits (the real, paid stylize pipeline) --------
+  // Signed-in users are metered per ACCOUNT with a monthly allowance that
+  // resets each calendar month (free vs premium cap). Anonymous users get a
+  // small per-IP taste and are nudged to sign in. Protects the model budget
+  // AND is the sign-in / upgrade trigger.
   const userId = await userFromRequest(req);
   const admin = getSupabaseAdmin();
   let usage: UsageRow | null = null;
@@ -242,20 +258,16 @@ export async function POST(req: NextRequest) {
   if (userId && admin) {
     const isPremium = await readPremium(admin, userId);
     usage = await readUsage(admin, userId);
-    if (isPremium) {
-      const usedToday = usage?.day === todayStr() ? usage.day_gens : 0;
-      if (usedToday >= AVATAR_GEN_LIMITS.premiumPerDay) {
-        return NextResponse.json(
-          { error: "You've hit today's generation limit — it resets tomorrow.", reason: "daily" },
-          { status: 402 }
-        );
-      }
-    } else if ((usage?.total_gens ?? 0) >= AVATAR_GEN_LIMITS.free) {
+    const usedThisMonth = usage?.month === monthStr() ? usage.month_gens : 0;
+    const cap = isPremium ? AVATAR_GEN_LIMITS.premiumPerMonth : AVATAR_GEN_LIMITS.freePerMonth;
+    if (usedThisMonth >= cap) {
       return NextResponse.json(
-        {
-          error: `You've used your ${AVATAR_GEN_LIMITS.free} free avatars. Upgrade to Premium for more.`,
-          reason: "upgrade",
-        },
+        isPremium
+          ? { error: "You've hit this month's generation limit — it resets next month.", reason: "monthly" }
+          : {
+              error: `You've used your ${AVATAR_GEN_LIMITS.freePerMonth} free avatars this month. Upgrade to Premium for more.`,
+              reason: "upgrade",
+            },
         { status: 402 }
       );
     }
@@ -267,19 +279,6 @@ export async function POST(req: NextRequest) {
         { error: "Sign in to keep generating avatars — it's free.", reason: "signin" },
         { status: 402, headers: { "Retry-After": String(anon.retryAfterSec) } }
       );
-    }
-  }
-
-  // "Keep as is" — no AI restyle, just cut the person out of their background
-  // and return the clean original. Returns { demo: true } on failure so the
-  // client can fall back to the untouched photo.
-  if (shouldStylize === false) {
-    try {
-      const cutout = await removeBackground(key, image);
-      if (userId && admin) await recordGen(admin, userId, usage);
-      return NextResponse.json({ image: cutout });
-    } catch (e) {
-      return NextResponse.json({ demo: true, note: String(e) });
     }
   }
 

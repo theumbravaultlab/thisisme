@@ -77,7 +77,8 @@ export default function AvatarStudio() {
   const generate = async () => {
     if (!effectiveSource) return;
     // Anonymous taste used up → nudge to sign in before spending a request.
-    if (anonBlocked) {
+    // Only stylized generations count against it — "Keep as is" is unlimited.
+    if (preset.stylize && anonBlocked) {
       setLimitReason("signin");
       setError("You've used your free avatar. Sign in to generate more — it's free.");
       setAuthOpen(true);
@@ -148,7 +149,8 @@ export default function AvatarStudio() {
       setResult(finalImage);
       addToLibrary(finalImage); // auto-saved to the library (tier-capped)
       // Count the anonymous taste locally (server meters signed-in accounts).
-      if (!user && data.image) {
+      // Only stylized generations count — "Keep as is" is free and unlimited.
+      if (!user && preset.stylize && data.image) {
         const n = anonGens + 1;
         setAnonGens(n);
         localStorage.setItem("thisisme:anonAvatarGens", String(n));
@@ -305,11 +307,13 @@ export default function AvatarStudio() {
 
           {!busy && (
             <p className="text-center text-xs text-fg-muted">
-              {premium
-                ? `Premium — up to ${AVATAR_GEN_LIMITS.premiumPerDay} generations a day.`
+              {!preset.stylize
+                ? "Background removal is free and unlimited."
+                : premium
+                ? `Premium — up to ${AVATAR_GEN_LIMITS.premiumPerMonth} generations a month.`
                 : user
-                ? `Free plan — ${AVATAR_GEN_LIMITS.free} avatars total, then upgrade for more.`
-                : `${Math.max(0, AVATAR_GEN_LIMITS.anon - anonGens)} free before signing in — sign in for ${AVATAR_GEN_LIMITS.free} total.`}
+                ? `Free plan — ${AVATAR_GEN_LIMITS.freePerMonth} avatars a month, then upgrade for more.`
+                : `${Math.max(0, AVATAR_GEN_LIMITS.anon - anonGens)} free before signing in — sign in for ${AVATAR_GEN_LIMITS.freePerMonth} a month.`}
             </p>
           )}
 
