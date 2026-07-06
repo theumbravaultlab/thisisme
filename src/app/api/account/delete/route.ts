@@ -32,6 +32,17 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
   if (!admin) return NextResponse.json({ error: "not configured" }, { status: 503 });
 
+  // Storage isn't FK-cascaded, so remove the user's avatar files first
+  // (best-effort — never block account deletion on this).
+  try {
+    const { data: files } = await admin.storage.from("avatars").list(user.id);
+    if (files && files.length > 0) {
+      await admin.storage.from("avatars").remove(files.map((f) => `${user.id}/${f.name}`));
+    }
+  } catch {
+    /* ignore */
+  }
+
   // Deleting the auth user cascades to every table keyed on auth.users(id).
   const { error } = await admin.auth.admin.deleteUser(user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

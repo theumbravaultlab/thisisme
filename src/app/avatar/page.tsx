@@ -17,6 +17,7 @@ import {
   type IntensityLevel,
 } from "@/lib/avatar";
 import { AVATAR_LIMITS, AVATAR_GEN_LIMITS } from "@/lib/types";
+import { uploadAvatar } from "@/lib/avatarStorage";
 import { track } from "@/lib/analytics";
 
 export default function AvatarStudio() {
@@ -146,8 +147,17 @@ export default function AvatarStudio() {
       // fal.ai render can be several MB, and every library entry lives in the
       // localStorage profile blob (~5-10MB total quota).
       const finalImage = await shrinkDataUrl(rawImage);
-      setResult(finalImage);
-      addToLibrary(finalImage); // auto-saved to the library (tier-capped)
+      // Signed-in avatars are uploaded to Storage so the profile holds a small
+      // URL instead of a multi-MB data URL. Falls back to the data URL if the
+      // upload fails or Storage isn't configured — no regression either way.
+      let stored = finalImage;
+      const supabase = getSupabase();
+      if (user && supabase) {
+        const url = await uploadAvatar(supabase, user.id, finalImage);
+        if (url) stored = url;
+      }
+      setResult(stored);
+      addToLibrary(stored); // auto-saved to the library (tier-capped)
       // Count the anonymous taste locally (server meters signed-in accounts).
       // Only stylized generations count — "Keep as is" is free and unlimited.
       if (!user && preset.stylize && data.image) {

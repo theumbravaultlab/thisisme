@@ -32,6 +32,7 @@ import {
 } from "./store";
 import { readableAccent } from "./color";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
+import { deleteAvatarByUrl } from "./avatarStorage";
 import { buildPublicPayload, generateHandle } from "./share";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "local";
@@ -387,14 +388,20 @@ export function useProfile() {
     [user]
   );
 
-  const removeAvatar = useCallback((dataUrl: string) => {
-    setProfile((p) => {
-      const avatars = p.data.avatars.filter((a) => a !== dataUrl);
-      const photoDataUrl =
-        p.data.photoDataUrl === dataUrl ? avatars[0] ?? null : p.data.photoDataUrl;
-      return { ...p, data: { ...p.data, avatars, photoDataUrl } };
-    });
-  }, []);
+  const removeAvatar = useCallback(
+    (dataUrl: string) => {
+      setProfile((p) => {
+        const avatars = p.data.avatars.filter((a) => a !== dataUrl);
+        const photoDataUrl =
+          p.data.photoDataUrl === dataUrl ? avatars[0] ?? null : p.data.photoDataUrl;
+        return { ...p, data: { ...p.data, avatars, photoDataUrl } };
+      });
+      // Best-effort: delete the underlying Storage file if this was a stored URL.
+      const supabase = getSupabase();
+      if (supabase && user) deleteAvatarByUrl(supabase, dataUrl).catch(() => {});
+    },
+    [user]
+  );
 
   // ---- custom fields + categories (premium) --------------------------------
   const addCustomField = useCallback((categoryKey: string) => {
