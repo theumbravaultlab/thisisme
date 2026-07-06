@@ -66,9 +66,24 @@ export function EditPanel({
 }: Props) {
   const categories = getCategories(profile);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [openCats, setOpenCats] = useState<Set<string>>(
     () => new Set(categories.map((c) => c.key))
   );
+
+  // Does the search match anything? (drives the "no results" message)
+  const q = query.trim().toLowerCase();
+  const labelOfRow = (r: Row) =>
+    r.kind === "builtin"
+      ? FIELD_META[r.field].label
+      : profile.data.customFields.find((f) => f.id === r.id)?.label ?? "";
+  const anyMatch =
+    !q ||
+    categories.some(
+      (c) =>
+        c.title.toLowerCase().includes(q) ||
+        c.rows.some((r) => labelOfRow(r).toLowerCase().includes(q))
+    );
   // Per-row "recency" of the last toggle, so a just-turned-on row sinks to the
   // bottom of the shown group and a just-turned-off row rises to the top of the
   // hidden group. Reset each time the panel closes.
@@ -152,38 +167,59 @@ export function EditPanel({
               </button>
             </div>
 
-            {/* One-tap presets — a fast way to set a whole vibe at once. */}
+            {/* Search across every stat — handy now the field list is long. */}
             <div className="border-b border-border px-4 pb-3 pt-3">
-              <p className="mb-2 text-xs font-medium text-fg-muted">
-                Quick start — pick a preset, then fine-tune below
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {VISIBILITY_PRESETS.map((preset) => (
-                  <button
-                    key={preset.key}
-                    onClick={() => applyPreset(preset.fields)}
-                    title={preset.desc}
-                    className="flex flex-col items-center gap-0.5 rounded-xl border border-border px-2 py-2 text-center text-xs transition hover:border-accent hover:bg-accent/5"
-                  >
-                    <span className="text-base">{preset.emoji}</span>
-                    <span className="font-medium leading-tight">{preset.label}</span>
-                  </button>
-                ))}
-              </div>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="🔍 Search stats…"
+                aria-label="Search stats"
+                className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+              />
             </div>
 
-            <p className="px-4 pb-3 pt-3 text-xs text-fg-muted">
-              Or toggle individual stats on and off below.
-            </p>
+            {!query && (
+              <>
+                {/* One-tap presets — a fast way to set a whole vibe at once. */}
+                <div className="border-b border-border px-4 pb-3 pt-3">
+                  <p className="mb-2 text-xs font-medium text-fg-muted">
+                    Quick start — pick a preset, then fine-tune below
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {VISIBILITY_PRESETS.map((preset) => (
+                      <button
+                        key={preset.key}
+                        onClick={() => applyPreset(preset.fields)}
+                        title={preset.desc}
+                        className="flex flex-col items-center gap-0.5 rounded-xl border border-border px-2 py-2 text-center text-xs transition hover:border-accent hover:bg-accent/5"
+                      >
+                        <span className="text-base">{preset.emoji}</span>
+                        <span className="font-medium leading-tight">{preset.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="px-4 pb-3 pt-3 text-xs text-fg-muted">
+                  Or toggle individual stats on and off below.
+                </p>
+              </>
+            )}
 
             <div className="flex-1 overflow-y-auto p-3">
               <div className="flex flex-col gap-3">
+                {q && !anyMatch && (
+                  <p className="px-1 py-2 text-sm text-fg-muted">
+                    No stats match “{query}”.
+                  </p>
+                )}
                 {categories.map((category) => (
                   <CategorySection
                     key={category.key}
                     category={category}
                     profile={profile}
                     premium={premium}
+                    query={q}
                     onUpgrade={onUpgrade}
                     open={openCats.has(category.key)}
                     expanded={expanded}
@@ -204,36 +240,37 @@ export function EditPanel({
                   />
                 ))}
 
-                {/* Add category (premium) */}
-                {premium ? (
-                  <button
-                    onClick={() => {
-                      const id = addCustomCategory();
-                      setOpenCats((s) => new Set(s).add(`cat:${id}`));
-                    }}
-                    className="rounded-2xl border border-dashed border-border py-3 text-sm font-medium text-fg-muted transition hover:border-accent hover:text-accent"
-                  >
-                    ＋ Add your own category
-                  </button>
-                ) : (
-                  <UpgradeRow
-                    label="＋ Add your own category"
-                    onUpgrade={onUpgrade}
-                  />
-                )}
+                {!query && (
+                  <>
+                    {/* Add category (premium) */}
+                    {premium ? (
+                      <button
+                        onClick={() => {
+                          const id = addCustomCategory();
+                          setOpenCats((s) => new Set(s).add(`cat:${id}`));
+                        }}
+                        className="rounded-2xl border border-dashed border-border py-3 text-sm font-medium text-fg-muted transition hover:border-accent hover:text-accent"
+                      >
+                        ＋ Add your own category
+                      </button>
+                    ) : (
+                      <UpgradeRow label="＋ Add your own category" onUpgrade={onUpgrade} />
+                    )}
 
-                {/* Version history (premium) */}
-                <button
-                  onClick={onOpenVersions}
-                  className="mt-1 flex items-center justify-center gap-1.5 rounded-2xl border border-border py-3 text-sm font-medium text-fg-muted transition hover:border-accent hover:text-accent"
-                >
-                  🕒 Version history
-                  {!premium && (
-                    <span className="rounded-full bg-amber-400/15 px-1.5 text-[10px] font-semibold text-amber-500">
-                      Premium
-                    </span>
-                  )}
-                </button>
+                    {/* Version history (premium) */}
+                    <button
+                      onClick={onOpenVersions}
+                      className="mt-1 flex items-center justify-center gap-1.5 rounded-2xl border border-border py-3 text-sm font-medium text-fg-muted transition hover:border-accent hover:text-accent"
+                    >
+                      🕒 Version history
+                      {!premium && (
+                        <span className="rounded-full bg-amber-400/15 px-1.5 text-[10px] font-semibold text-amber-500">
+                          Premium
+                        </span>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </motion.aside>
@@ -247,6 +284,7 @@ function CategorySection({
   category,
   profile,
   premium,
+  query,
   onUpgrade,
   open,
   expanded,
@@ -265,6 +303,7 @@ function CategorySection({
   category: CategorySpec;
   profile: Profile;
   premium: boolean;
+  query: string;
   onUpgrade: () => void;
   open: boolean;
   expanded: string | null;
@@ -280,7 +319,19 @@ function CategorySection({
   updateCustomCategory: (id: string, patch: Partial<CustomCategory>) => void;
   removeCustomCategory: (id: string) => void;
 }) {
-  const rows = category.rows;
+  // When searching, keep only rows whose label (or the category title) matches,
+  // and force the section open. `query` is already trimmed + lowercased.
+  const searching = query.length > 0;
+  const labelOf = (r: Row) =>
+    r.kind === "builtin"
+      ? FIELD_META[r.field].label
+      : profile.data.customFields.find((f) => f.id === r.id)?.label ?? "";
+  const catMatches = searching && category.title.toLowerCase().includes(query);
+  const rows = searching
+    ? category.rows.filter((r) => catMatches || labelOf(r).toLowerCase().includes(query))
+    : category.rows;
+  if (searching && rows.length === 0) return null;
+  const isOpen = searching || open;
   const baseIdx = new Map(rows.map((r, i) => [rowKey(r), i]));
   const moveOf = (r: Row) => moves[rowKey(r)] ?? 0;
   const idxOf = (r: Row) => baseIdx.get(rowKey(r)) ?? 0;
@@ -316,12 +367,12 @@ function CategorySection({
         </span>
         <span className="flex items-center gap-2 text-xs text-fg-muted">
           {used.length} shown
-          <span>{open ? "▴" : "▾"}</span>
+          <span>{isOpen ? "▴" : "▾"}</span>
         </span>
       </button>
 
       <AnimatePresence initial={false}>
-        {open && (
+        {isOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -390,14 +441,14 @@ function CategorySection({
                 )
               )}
 
-              {used.length === 0 && (
+              {!searching && used.length === 0 && (
                 <p className="px-1 py-1 text-xs text-fg-muted">
                   Nothing shown from this section yet.
                 </p>
               )}
 
-              {/* Add detail (premium) */}
-              {premium ? (
+              {/* Add detail (premium) — hidden while searching */}
+              {searching ? null : premium ? (
                 <button
                   onClick={() => addCustomField(category.key)}
                   className="mt-1 self-start rounded-lg border border-dashed border-border px-2.5 py-1.5 text-xs font-medium text-fg-muted transition hover:border-accent hover:text-accent"

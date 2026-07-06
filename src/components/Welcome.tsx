@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { useEscToClose } from "@/lib/useEscToClose";
 
 // First-run guidance. Shown once (dismissal persisted by the caller).
 export function Welcome({
@@ -12,6 +13,7 @@ export function Welcome({
   onStart: () => void;
   onSkip: () => void;
 }) {
+  useEscToClose(open, onSkip);
   return (
     <AnimatePresence>
       {open && (

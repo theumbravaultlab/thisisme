@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Profile } from "@/lib/types";
+import { useEscToClose } from "@/lib/useEscToClose";
 
 interface Props {
   open: boolean;
@@ -33,6 +34,8 @@ export function ShareModal({
 }: Props) {
   const { share, username } = profile.data;
   const [copied, setCopied] = useState(false);
+
+  useEscToClose(open, onClose);
 
   const shareUrl =
     typeof window !== "undefined" && username

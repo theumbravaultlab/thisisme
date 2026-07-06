@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useEscToClose } from "@/lib/useEscToClose";
+
+// Lemon Squeezy customer self-service — buyers enter their email to view orders,
+// receipts, and invoices for their one-time purchase.
+const BILLING_PORTAL_URL = "https://app.lemonsqueezy.com/my-orders";
+const SUPPORT_EMAIL = "theumbravaultlab@gmail.com";
 
 interface Props {
   open: boolean;
@@ -33,6 +39,8 @@ export function AccountModal({
     onClose();
   };
 
+  useEscToClose(open, close);
+
   const signOut = () => {
     onSignOut();
     close();
@@ -63,6 +71,9 @@ export function AccountModal({
             onClick={close}
           />
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Account"
             className="fixed left-1/2 top-1/2 z-50 w-[90%] max-w-sm -translate-x-1/2 -translate-y-1/2"
             initial={{ opacity: 0, scale: 0.94, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -92,6 +103,17 @@ export function AccountModal({
                 >
                   ⬇️ Export my data
                 </button>
+
+                {premium && (
+                  <a
+                    href={BILLING_PORTAL_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium transition hover:border-accent"
+                  >
+                    🧾 Manage billing &amp; receipts
+                  </a>
+                )}
 
                 <button
                   onClick={signOut}
@@ -138,10 +160,17 @@ export function AccountModal({
                 )}
               </div>
 
+              <p className="mt-4 text-center text-xs text-fg-muted">
+                Need help?{" "}
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent hover:underline">
+                  {SUPPORT_EMAIL}
+                </a>
+              </p>
+
               <button
                 onClick={close}
                 disabled={deleting}
-                className="mt-4 w-full text-center text-xs text-fg-muted transition hover:text-fg disabled:opacity-60"
+                className="mt-3 w-full text-center text-xs text-fg-muted transition hover:text-fg disabled:opacity-60"
               >
                 Close
               </button>

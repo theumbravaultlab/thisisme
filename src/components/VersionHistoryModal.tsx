@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ProfileSnapshot, SnapshotBody } from "@/lib/store";
+import { useEscToClose } from "@/lib/useEscToClose";
 
 interface Props {
   open: boolean;
@@ -37,6 +38,8 @@ export function VersionHistoryModal({
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+
+  useEscToClose(open, onClose);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -75,6 +78,9 @@ export function VersionHistoryModal({
             onClick={onClose}
           />
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Version history"
             className="fixed left-1/2 top-1/2 z-50 w-[92%] max-w-md -translate-x-1/2 -translate-y-1/2"
             initial={{ opacity: 0, scale: 0.94, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

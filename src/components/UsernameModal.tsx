@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useEscToClose } from "@/lib/useEscToClose";
 
 const RE = /^[a-z0-9_]{3,20}$/;
 
@@ -26,6 +27,12 @@ export function UsernameModal({
   const [status, setStatus] = useState<Status>("idle");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEscToClose(open, onClose);
+
+  // Changing an existing handle breaks the old public link — warn before saving.
+  const changingHandle =
+    !!currentUsername && name.toLowerCase().trim() !== currentUsername;
 
   useEffect(() => {
     const u = name.toLowerCase().trim();
@@ -113,6 +120,15 @@ export function UsernameModal({
               </p>
             )}
             {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+
+            {changingHandle && status === "available" && (
+              <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-600 dark:text-amber-400">
+                ⚠ Heads up: your current link{" "}
+                <span className="font-medium">/p/{currentUsername}</span> will stop
+                working. Anyone who saved or posted it won&apos;t find your profile
+                anymore.
+              </p>
+            )}
 
             <div className="mt-5 flex gap-2">
               <button
