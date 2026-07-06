@@ -5,11 +5,14 @@
 // Usage: track("profile_edit", { field: "age" })
 
 import { track as vercelTrack } from "@vercel/analytics";
+import { analyticsAllowed } from "./consent";
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 
 export function track(event: string, props: Props = {}): void {
   if (typeof window === "undefined") return;
+  // Respect the user's choice — no analytics events unless they opted in.
+  if (!analyticsAllowed()) return;
   if (process.env.NODE_ENV === "production") {
     // Vercel custom events only accept string/number/boolean values.
     const clean: Record<string, string | number | boolean> = {};

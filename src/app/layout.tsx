@@ -7,7 +7,8 @@ import {
   Caveat,
   Archivo_Black,
 } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
+import { AnalyticsGate } from "@/components/AnalyticsGate";
+import { ConsentBanner } from "@/components/ConsentBanner";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -47,7 +48,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">
         {children}
-        <Analytics />
+        <ConsentBanner />
+        <AnalyticsGate />
       </body>
     </html>
   );

@@ -6,6 +6,7 @@ import type { Profile } from "@/lib/types";
 import { readableAccent } from "@/lib/color";
 import { NameTitle } from "./NameTitle";
 import { ProfileHud } from "./ProfileHud";
+import { LegalFooterLinks } from "./LegalFooterLinks";
 
 // Read-only render of a published profile for public visitors (no auth, no
 // editing). Reuses the same HUD components in non-interactive mode.
@@ -56,16 +57,21 @@ export function PublicProfileView({ profile }: { profile: Profile }) {
         </div>
       </main>
 
-      {/* Free profiles carry the "thisisme" credit (the viral loop). Premium
-          removes it — a paid perk. */}
-      {profile.tier !== "premium" && (
-        <footer className="border-t border-border px-4 py-4 text-center text-sm text-fg-muted">
-          Made with{" "}
-          <Link href="/" className="font-semibold text-accent">
-            thisisme
-          </Link>
-        </footer>
-      )}
+      <footer className="border-t border-border px-4 py-4 text-center text-sm text-fg-muted">
+        {/* Free profiles carry the "thisisme" credit (the viral loop). Premium
+            removes it — a paid perk. Legal links show either way. */}
+        {profile.tier !== "premium" && (
+          <p>
+            Made with{" "}
+            <Link href="/" className="font-semibold text-accent">
+              thisisme
+            </Link>
+          </p>
+        )}
+        <div className="mt-1 text-xs">
+          <LegalFooterLinks />
+        </div>
+      </footer>
     </>
   );
 }

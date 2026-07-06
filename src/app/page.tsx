@@ -14,6 +14,7 @@ import { SaveIndicator } from "@/components/SaveIndicator";
 import { HudSkeleton } from "@/components/HudSkeleton";
 import { Welcome } from "@/components/Welcome";
 import { Toast, type ToastState } from "@/components/Toast";
+import { LegalFooterLinks } from "@/components/LegalFooterLinks";
 import { useProfile } from "@/lib/useProfile";
 import { track } from "@/lib/analytics";
 import { countHiddenSections, type HudCardSpec } from "@/lib/hudCards";
@@ -394,19 +395,24 @@ export default function Home() {
       <Toast toast={toast} onDismiss={() => setToast(null)} />
 
       <footer className="border-t border-border px-4 py-2 text-center text-[11px] text-fg-muted sm:py-4 sm:text-sm">
-        {/* premium removes the "thisisme" branding */}
-        {premium
-          ? user
-            ? `Synced to ${user.email}`
+        <div>
+          {/* premium removes the "thisisme" branding */}
+          {premium
+            ? user
+              ? `Synced to ${user.email}`
+              : cloudEnabled
+              ? "Sign in to sync across devices"
+              : "Saved on this device"
+            : user
+            ? `thisisme · synced to ${user.email}`
             : cloudEnabled
-            ? "Sign in to sync across devices"
-            : "Saved on this device"
-          : user
-          ? `thisisme · synced to ${user.email}`
-          : cloudEnabled
-          ? "thisisme · sign in to sync across devices"
-          : "thisisme · saved on this device"}
-        {savedLabel && hydrated ? ` · ${savedLabel}` : ""}
+            ? "thisisme · sign in to sync across devices"
+            : "thisisme · saved on this device"}
+          {savedLabel && hydrated ? ` · ${savedLabel}` : ""}
+        </div>
+        <div className="mt-1 text-[11px]">
+          <LegalFooterLinks />
+        </div>
       </footer>
     </>
   );
