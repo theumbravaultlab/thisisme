@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -51,14 +51,54 @@ export default function AvatarStudio() {
   // and premium limits are enforced authoritatively on the server.
   const [anonGens, setAnonGens] = useState(0);
   const [limitReason, setLimitReason] = useState<string | null>(null);
+  // The signed-in caller's monthly usage, fetched from the server so the button
+  // can gray out before they try. null until loaded (or when signed out).
+  const [usage, setUsage] = useState<{
+    premium: boolean;
+    used: number;
+    limit: number;
+    remaining: number;
+  } | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAnonGens(Number(localStorage.getItem("thisisme:anonAvatarGens") || "0"));
   }, []);
 
+  // Pull the current month's usage for a signed-in user (authoritative count).
+  const refreshUsage = useCallback(async () => {
+    if (!user) {
+      setUsage(null);
+      return;
+    }
+    try {
+      const {
+        data: { session },
+      } = (await getSupabase()?.auth.getSession()) ?? { data: { session: null } };
+      const token = session?.access_token;
+      const res = await fetch("/api/avatar", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const j = await res.json();
+      setUsage(j?.signedIn ? j : null);
+    } catch {
+      /* ignore — button stays enabled, server still enforces on submit */
+    }
+  }, [user]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshUsage();
+  }, [refreshUsage]);
+
   const effectiveSource = source ?? (hydrated ? profile.data.photoDataUrl : null);
-  const anonBlocked = !user && anonGens >= AVATAR_GEN_LIMITS.anon;
+  // Out of generations? Signed-in uses the server count; anon uses the local
+  // taste counter. Every preset now counts (background removal is a paid call).
+  const outOfGens = user
+    ? usage
+      ? usage.remaining <= 0
+      : false
+    : anonGens >= AVATAR_GEN_LIMITS.anon;
 
   const choosePreset = (p: AvatarPreset) => {
     setPreset(p);
@@ -77,12 +117,14 @@ export default function AvatarStudio() {
 
   const generate = async () => {
     if (!effectiveSource) return;
-    // Anonymous taste used up → nudge to sign in before spending a request.
-    // Only stylized generations count against it — "Keep as is" is unlimited.
-    if (preset.stylize && anonBlocked) {
-      setLimitReason("signin");
-      setError("You've used your free avatar. Sign in to generate more — it's free.");
-      setAuthOpen(true);
+    // Out of generations → don't spend a request (the button is disabled too).
+    // Nudge anon users to sign in; signed-in users see the upgrade CTA below.
+    if (outOfGens) {
+      if (!user) {
+        setLimitReason("signin");
+        setError("You've used your free generation. Sign in for more — it's free.");
+        setAuthOpen(true);
+      }
       return;
     }
     setBusy(true);
@@ -158,12 +200,16 @@ export default function AvatarStudio() {
       }
       setResult(stored);
       addToLibrary(stored); // auto-saved to the library (tier-capped)
-      // Count the anonymous taste locally (server meters signed-in accounts).
-      // Only stylized generations count — "Keep as is" is free and unlimited.
-      if (!user && preset.stylize && data.image) {
-        const n = anonGens + 1;
-        setAnonGens(n);
-        localStorage.setItem("thisisme:anonAvatarGens", String(n));
+      // Every real generation counts. Signed-in accounts are metered on the
+      // server (refresh the count); anon uses the local taste counter.
+      if (data.image) {
+        if (user) {
+          refreshUsage();
+        } else {
+          const n = anonGens + 1;
+          setAnonGens(n);
+          localStorage.setItem("thisisme:anonAvatarGens", String(n));
+        }
       }
     } catch {
       setError("Couldn't generate — please try again.");
@@ -301,11 +347,13 @@ export default function AvatarStudio() {
 
           <button
             onClick={generate}
-            disabled={!effectiveSource || busy}
-            className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+            disabled={!effectiveSource || busy || outOfGens}
+            className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy
               ? "Working…"
+              : outOfGens
+              ? "No generations left"
               : !preset.stylize
               ? result
                 ? "Redo"
@@ -315,16 +363,46 @@ export default function AvatarStudio() {
               : "Generate avatar"}
           </button>
 
-          {!busy && (
-            <p className="text-center text-xs text-fg-muted">
-              {!preset.stylize
-                ? "Background removal is free and unlimited."
-                : premium
-                ? `Premium — up to ${AVATAR_GEN_LIMITS.premiumPerMonth} generations a month.`
-                : user
-                ? `Free plan — ${AVATAR_GEN_LIMITS.freePerMonth} avatars a month, then upgrade for more.`
-                : `${Math.max(0, AVATAR_GEN_LIMITS.anon - anonGens)} free before signing in — sign in for ${AVATAR_GEN_LIMITS.freePerMonth} a month.`}
-            </p>
+          {outOfGens ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-center text-xs text-amber-700 dark:text-amber-300">
+              <p>
+                {!user
+                  ? "You've used your free generation. Sign in to keep going — it's free."
+                  : usage?.premium
+                  ? "You've used all your generations this month. They reset at the start of next month."
+                  : `You've used all ${usage?.limit ?? AVATAR_GEN_LIMITS.freePerMonth} of your free generations this month. Upgrade to Premium for more.`}
+              </p>
+              {!user ? (
+                <button
+                  onClick={() => setAuthOpen(true)}
+                  className="mx-auto rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+                >
+                  Sign in — it&apos;s free
+                </button>
+              ) : usage && !usage.premium ? (
+                <button
+                  onClick={async () => {
+                    const { error: e } = await startCheckout();
+                    if (e) setError(e === "sign-in-required" ? "Sign in to upgrade." : e);
+                  }}
+                  className="mx-auto rounded-lg bg-gradient-to-r from-amber-400 to-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+                >
+                  ✨ Upgrade to Premium — $9
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            !busy && (
+              <p className="text-center text-xs text-fg-muted">
+                {!user
+                  ? `${Math.max(0, AVATAR_GEN_LIMITS.anon - anonGens)} free before signing in — sign in for ${AVATAR_GEN_LIMITS.freePerMonth} a month.`
+                  : usage
+                  ? `${usage.remaining} of ${usage.limit} generations left this month.`
+                  : premium
+                  ? `Premium — up to ${AVATAR_GEN_LIMITS.premiumPerMonth} generations a month.`
+                  : `Free plan — ${AVATAR_GEN_LIMITS.freePerMonth} generations a month.`}
+              </p>
+            )
           )}
 
           {result && (
@@ -338,7 +416,7 @@ export default function AvatarStudio() {
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          {limitReason === "upgrade" && (
+          {limitReason === "upgrade" && !outOfGens && (
             <button
               onClick={async () => {
                 const { error: e } = await startCheckout();

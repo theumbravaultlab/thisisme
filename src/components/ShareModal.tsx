@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Profile } from "@/lib/types";
 import { useEscToClose } from "@/lib/useEscToClose";
@@ -41,10 +41,6 @@ export function ShareModal({
     typeof window !== "undefined" && username
       ? `${window.location.origin}/p/${username}`
       : "";
-
-  useEffect(() => {
-    if (open && signedIn && username && !share.enabled) enableSharing();
-  }, [open, signedIn, username, share.enabled, enableSharing]);
 
   const copy = async () => {
     if (!shareUrl) return;
@@ -122,11 +118,6 @@ export function ShareModal({
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  <p className="text-sm text-fg-muted">
-                    Your profile shares exactly what&apos;s currently visible on
-                    your page, arranged the same way — no separate setup.
-                  </p>
-
                   {/* handle */}
                   <div className="flex items-center justify-between rounded-xl border border-border bg-bg px-3.5 py-3 text-sm">
                     <span>
@@ -140,45 +131,67 @@ export function ShareModal({
                     </button>
                   </div>
 
-                  {/* link */}
-                  <div className="flex gap-2">
-                    <input
-                      readOnly
-                      value={shareUrl}
-                      onFocus={(e) => e.currentTarget.select()}
-                      className="min-w-0 flex-1 rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none"
-                    />
-                    <button
-                      onClick={copy}
-                      className="shrink-0 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-                    >
-                      {copied ? "Copied!" : "Copy"}
-                    </button>
-                    <a
-                      href={shareUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 rounded-xl border border-border px-3 py-2 text-sm transition hover:border-accent"
-                    >
-                      Open
-                    </a>
-                  </div>
+                  {share.enabled ? (
+                    <>
+                      {/* What sharing means — the act of sharing the link is the
+                          choice to be public; no separate on/off toggle. */}
+                      <div className="flex items-start gap-2 rounded-xl border border-accent/30 bg-accent/5 px-3.5 py-3 text-xs text-fg-muted">
+                        <span className="text-sm">🔓</span>
+                        <p>
+                          You&apos;re making your profile{" "}
+                          <span className="font-medium text-fg">public</span>. Anyone you
+                          share this link with can see everything currently shown on your
+                          profile — sharing the link is what makes it public. Hide anything
+                          you don&apos;t want seen in Customize first.
+                        </p>
+                      </div>
 
-                  {/* unpublish escape hatch */}
-                  <label className="flex items-center justify-between rounded-xl border border-border bg-bg px-3.5 py-3">
-                    <span className="text-sm font-medium">
-                      Public profile
-                      <span className="ml-1.5 text-xs text-fg-muted">
-                        anyone with the link can view
-                      </span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={share.enabled}
-                      onChange={(e) => (e.target.checked ? enableSharing() : disableSharing())}
-                      className="h-4 w-4 accent-accent"
-                    />
-                  </label>
+                      {/* link */}
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={shareUrl}
+                          onFocus={(e) => e.currentTarget.select()}
+                          className="min-w-0 flex-1 rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none"
+                        />
+                        <button
+                          onClick={copy}
+                          className="shrink-0 rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                        >
+                          {copied ? "Copied!" : "Copy"}
+                        </button>
+                        <a
+                          href={shareUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0 rounded-xl border border-border px-3 py-2 text-sm transition hover:border-accent"
+                        >
+                          Open
+                        </a>
+                      </div>
+
+                      <button
+                        onClick={disableSharing}
+                        className="self-start text-xs text-fg-muted underline transition hover:text-red-500"
+                      >
+                        Make my profile private again
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-bg px-3.5 py-5 text-center">
+                      <p className="text-sm text-fg-muted">
+                        Your profile is private. Making it public creates a shareable
+                        link — anyone with the link will see everything currently visible
+                        on your profile.
+                      </p>
+                      <button
+                        onClick={enableSharing}
+                        className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                      >
+                        Make my profile public
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -311,25 +311,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ demo: true });
   }
 
-  // "Keep as is" — no AI restyle, just cut the person out of their background
-  // and return the clean original. This is cheap, so it's UNLIMITED on every
-  // tier: never metered, never blocked by the quota (only the per-IP burst
-  // limit above applies). Returns { demo: true } on failure so the client can
-  // fall back to the untouched photo.
-  if (shouldStylize === false) {
-    try {
-      const cutout = await removeBackground(key, image);
-      return NextResponse.json({ image: cutout });
-    } catch (e) {
-      return NextResponse.json({ demo: true, note: String(e) });
-    }
-  }
-
   // ---- monthly generation limits (atomic + shared-store) ------------------
-  // Signed-in users are metered per ACCOUNT with a monthly allowance (free vs
-  // premium cap); anonymous users get a small per-IP daily taste and are nudged
-  // to sign in. Claims are atomic in Postgres so concurrent requests can't race
-  // past the cap, and the per-IP counter is shared across every instance.
+  // EVERY generation counts — even "Keep as is", which still makes a paid
+  // fal.ai background-removal call. Signed-in users are metered per ACCOUNT with
+  // a monthly allowance (free vs premium cap); anonymous users get a small
+  // per-IP daily taste and are nudged to sign in. Claims are atomic in Postgres
+  // so concurrent requests can't race past the cap, shared across instances.
   const userId = await userFromRequest(req);
   const month = monthStr();
 
@@ -384,6 +371,20 @@ export async function POST(req: NextRequest) {
     if (!anon.ok) return anonBlocked();
   }
 
+  // "Keep as is" — no AI restyle, just cut the person out of their background.
+  // It's a paid background-removal call, so it's metered like any generation
+  // (the credit was already claimed above; refund it if the call fails).
+  if (shouldStylize === false) {
+    try {
+      const cutout = await removeBackground(key, image);
+      if (legacyRecord && userId && admin) await recordGen(admin, userId, legacyUsage);
+      return NextResponse.json({ image: cutout });
+    } catch (e) {
+      if (onFailRefund) await onFailRefund().catch(() => {});
+      return NextResponse.json({ demo: true, note: String(e) });
+    }
+  }
+
   try {
     const finalPrompt =
       prompt?.trim() ||
@@ -427,4 +428,25 @@ export async function POST(req: NextRequest) {
     if (onFailRefund) await onFailRefund().catch(() => {});
     return NextResponse.json({ demo: true, note: String(e) });
   }
+}
+
+// Current month's generation usage for the signed-in caller, so the client can
+// gray out the Generate button before they even try. Anonymous callers get
+// { signedIn: false } and the client uses its own local taste counter.
+export async function GET(req: NextRequest) {
+  const userId = await userFromRequest(req);
+  const admin = getSupabaseAdmin();
+  if (!userId || !admin) return NextResponse.json({ signedIn: false });
+
+  const isPremium = await readPremium(admin, userId);
+  const usage = await readUsage(admin, userId);
+  const used = usage?.month === monthStr() ? usage.month_gens : 0;
+  const limit = isPremium ? AVATAR_GEN_LIMITS.premiumPerMonth : AVATAR_GEN_LIMITS.freePerMonth;
+  return NextResponse.json({
+    signedIn: true,
+    premium: isPremium,
+    used,
+    limit,
+    remaining: Math.max(0, limit - used),
+  });
 }

@@ -38,6 +38,7 @@ export function VersionHistoryModal({
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [confirmRestore, setConfirmRestore] = useState<string | null>(null);
 
   useEscToClose(open, onClose);
 
@@ -109,8 +110,16 @@ export function VersionHistoryModal({
                 </div>
               ) : (
                 <div className="mt-4 flex flex-col gap-4">
+                  <p className="rounded-xl border border-border bg-bg/40 px-3 py-2 text-xs text-fg-muted">
+                    Your everyday edits save automatically. Version history is
+                    separate — press{" "}
+                    <span className="font-medium text-fg">Save</span> below to
+                    capture the profile as it is right now. Only versions you save
+                    here appear in your history.
+                  </p>
+
                   <div className="flex flex-col gap-2 rounded-2xl border border-border bg-bg/40 p-3">
-                    <p className="text-sm font-medium">Save the current version</p>
+                    <p className="text-sm font-medium">Save this version</p>
                     <div className="flex gap-2">
                       <input
                         value={label}
@@ -151,15 +160,34 @@ export function VersionHistoryModal({
                               <p className="text-xs text-fg-muted">{fmt(s.created_at)}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
-                              <button
-                                onClick={() => {
-                                  restoreSnapshot(s.snapshot);
-                                  onClose();
-                                }}
-                                className="rounded-lg border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent/10"
-                              >
-                                Restore
-                              </button>
+                              {confirmRestore === s.id ? (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      restoreSnapshot(s.snapshot);
+                                      onClose();
+                                    }}
+                                    title="Replaces your current profile with this version"
+                                    className="rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-white transition hover:opacity-90"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmRestore(null)}
+                                    className="rounded-lg border border-border px-2 py-1 text-xs text-fg-muted transition hover:border-accent"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmRestore(s.id)}
+                                  title="Replaces your current profile with this version"
+                                  className="rounded-lg border border-accent px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-accent/10"
+                                >
+                                  Restore
+                                </button>
+                              )}
                               <button
                                 onClick={async () => {
                                   await deleteSnapshot(s.id);
