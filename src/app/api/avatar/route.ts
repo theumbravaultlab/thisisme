@@ -52,6 +52,23 @@ async function releaseMonthlyGen(admin: SupabaseClient, userId: string, month: s
   await admin.rpc("release_avatar_gen", { p_user_id: userId, p_month: month });
 }
 
+// Shared-store burst limiter (fixed window). "ok" = under the limit, "over" =
+// window full, "fallback" = RPC unavailable (use in-memory instead).
+async function claimRate(
+  admin: SupabaseClient,
+  bucket: string,
+  windowSecs: number,
+  limit: number
+): Promise<"ok" | "over" | "fallback"> {
+  const { data, error } = await admin.rpc("claim_rate", {
+    p_bucket: bucket,
+    p_window_secs: windowSecs,
+    p_limit: limit,
+  });
+  if (error) return "fallback";
+  return data ? "ok" : "over";
+}
+
 // Atomic per-IP daily claim (shared across serverless instances).
 async function claimIpGen(
   admin: SupabaseClient,
@@ -268,17 +285,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Throttle the paid pipeline per IP so a runaway loop can't drain the model
-  // budget. A short burst window stops rapid-fire abuse; a daily window caps
-  // sustained use. (Per-instance — see rateLimit.ts.)
+  // Throttle per IP so a runaway loop can't hammer the pipeline. Short burst
+  // window; enforced in the database (shared across instances) with an
+  // in-memory fallback when the RPC/service key isn't available.
   const ip = clientIp(req);
-  const burst = rateLimit(`avatar:burst:${ip}`, 12, 5 * 60_000);
-  if (!burst.ok) {
+  const admin = getSupabaseAdmin();
+  const burstBucket = `avatar:burst:${sha256(ip)}`;
+  let burstOk: boolean;
+  if (admin) {
+    const r = await claimRate(admin, burstBucket, 5 * 60, 12);
+    burstOk = r === "fallback" ? rateLimit(burstBucket, 12, 5 * 60_000).ok : r === "ok";
+  } else {
+    burstOk = rateLimit(burstBucket, 12, 5 * 60_000).ok;
+  }
+  if (!burstOk) {
     return NextResponse.json(
       { error: "You're generating avatars too quickly — please try again in a few minutes." },
-      { status: 429, headers: { "Retry-After": String(burst.retryAfterSec) } }
+      { status: 429 }
     );
   }
+
   const key = process.env.FAL_KEY;
   if (!key) {
     // No model key → free local demo path, nothing to meter.
@@ -305,7 +331,6 @@ export async function POST(req: NextRequest) {
   // to sign in. Claims are atomic in Postgres so concurrent requests can't race
   // past the cap, and the per-IP counter is shared across every instance.
   const userId = await userFromRequest(req);
-  const admin = getSupabaseAdmin();
   const month = monthStr();
 
   // Set when this request consumed a per-account credit that must be handed
