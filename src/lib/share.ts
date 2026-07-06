@@ -3,7 +3,7 @@
 // values of everything else are never copied in, so they can't leak through
 // the public row.
 
-import { Profile, ProfileData, FieldKey } from "./types";
+import { Profile, ProfileData, FieldKey, fieldApplies } from "./types";
 import { DEFAULT_PROFILE } from "./store";
 
 // Built-in stat fields that can be shared (everything except the identity
@@ -26,6 +26,7 @@ const SHAREABLE_SIMPLE: (keyof ProfileData)[] = [
   "hottestTake",
   "relationshipStatus",
   "religion",
+  "bibleVerse",
   "achievements",
   "currentlyObsessed",
   "pets",
@@ -71,7 +72,7 @@ export function generateHandle(name: string): string {
 // is rebuilt, so any visibility change syncs to the public page automatically.
 function shareableKeys(profile: Profile): Set<string> {
   const builtin = (Object.keys(profile.visibility) as FieldKey[]).filter(
-    (f) => f !== "name" && profile.visibility[f]
+    (f) => f !== "name" && profile.visibility[f] && fieldApplies(f, profile.data)
   );
   const custom = profile.data.customFields.filter((c) => c.visible).map((c) => c.id);
   return new Set([...builtin, ...custom]);

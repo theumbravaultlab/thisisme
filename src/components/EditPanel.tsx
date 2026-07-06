@@ -172,25 +172,9 @@ export function EditPanel({
               </div>
             </div>
 
-            <p className="px-4 pt-3 text-xs text-fg-muted">
+            <p className="px-4 pb-3 pt-3 text-xs text-fg-muted">
               Or toggle individual stats on and off below.
             </p>
-
-            {/* Name is pinned here, always visible and always expanded —
-                unlike every other field, there's no chevron to collapse it,
-                and its label is sized like a category title, not a detail row. */}
-            <div className="border-b border-border px-4 py-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 font-semibold">
-                  <span>{FIELD_META.name.emoji}</span>
-                  {FIELD_META.name.label}
-                </span>
-                <Switch on={profile.visibility.name} onClick={() => toggleVisibility("name")} />
-              </div>
-              <div className={profile.visibility.name ? "" : "opacity-60"}>
-                <CardBody field="name" data={profile.data} editing update={update} premium={premium} />
-              </div>
-            </div>
 
             <div className="flex-1 overflow-y-auto p-3">
               <div className="flex flex-col gap-3">
@@ -296,22 +280,28 @@ function CategorySection({
   updateCustomCategory: (id: string, patch: Partial<CustomCategory>) => void;
   removeCustomCategory: (id: string) => void;
 }) {
-  // "name" is pinned at the top of the panel instead of living in this
-  // accordion (see EditPanel above), so exclude it here to avoid showing it twice.
-  const rows = category.rows.filter((r) => !(r.kind === "builtin" && r.field === "name"));
+  const rows = category.rows;
   const baseIdx = new Map(rows.map((r, i) => [rowKey(r), i]));
   const moveOf = (r: Row) => moves[rowKey(r)] ?? 0;
   const idxOf = (r: Row) => baseIdx.get(rowKey(r)) ?? 0;
+  // A premium-only built-in the current (non-premium) user can't turn on yet.
+  // These sink below everything else so the usable stats come first.
+  const isLocked = (r: Row) =>
+    r.kind === "builtin" && Boolean(FIELD_META[r.field].premium) && !premium;
   // Shown rows: most-recently-turned-on sinks to the bottom (ascending by move,
   // untouched keep original order at the top). Hidden rows: most-recently-
-  // turned-off rises to the top (descending by move).
+  // turned-off rises to the top (descending by move). Locked premium rows are
+  // held out and appended last.
   const used = rows
     .filter((r) => rowIsVisible(profile, r))
     .sort((a, b) => moveOf(a) - moveOf(b) || idxOf(a) - idxOf(b));
   const hidden = rows
-    .filter((r) => !rowIsVisible(profile, r))
+    .filter((r) => !rowIsVisible(profile, r) && !isLocked(r))
     .sort((a, b) => moveOf(b) - moveOf(a) || idxOf(a) - idxOf(b));
-  const visibleRows = [...used, ...hidden];
+  const lockedRows = rows
+    .filter((r) => !rowIsVisible(profile, r) && isLocked(r))
+    .sort((a, b) => idxOf(a) - idxOf(b));
+  const visibleRows = [...used, ...hidden, ...lockedRows];
   const customCatId = category.builtin ? null : category.key.slice("cat:".length);
 
   return (

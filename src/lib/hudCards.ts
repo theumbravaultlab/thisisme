@@ -12,6 +12,7 @@ import {
   Profile,
   customCatKey,
   customFieldCardKey,
+  fieldApplies,
 } from "./types";
 import { fieldToText } from "./fieldDisplay";
 
@@ -58,7 +59,9 @@ export function getCategories(profile: Profile): CategorySpec[] {
     emoji: c.emoji,
     builtin: true,
     rows: [
-      ...c.fields.map((f) => ({ kind: "builtin", field: f }) as Row),
+      ...c.fields
+        .filter((f) => fieldApplies(f, profile.data))
+        .map((f) => ({ kind: "builtin", field: f }) as Row),
       ...customFields
         .filter((cf) => cf.categoryKey === c.title)
         .map((cf) => ({ kind: "custom", id: cf.id }) as Row),

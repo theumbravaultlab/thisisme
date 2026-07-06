@@ -75,6 +75,7 @@ export interface ProfileData {
   // life
   relationshipStatus: string;
   religion: string;
+  bibleVerse: string; // only shown when religion is "Christianity"
   achievements: string[]; // "My Proudest Achievement"
   currentlyObsessed: string;
   pets: string; // "Milo (golden retriever)"
@@ -150,6 +151,7 @@ export interface FieldVisibility {
   hottestTake: boolean;
   relationshipStatus: boolean;
   religion: boolean;
+  bibleVerse: boolean;
   achievements: boolean;
   currentlyObsessed: boolean;
   pets: boolean;
@@ -220,6 +222,7 @@ export const FIELD_META: Record<FieldKey, { label: string; emoji: string; premiu
   hottestTake: { label: "My Hottest Take", emoji: "🔥" },
   relationshipStatus: { label: "Relationship", emoji: "🤝" },
   religion: { label: "Religion", emoji: "🙏" },
+  bibleVerse: { label: "Favorite Bible Verse", emoji: "✝️" },
   achievements: { label: "My Proudest Achievement", emoji: "🏆" },
   currentlyObsessed: { label: "Currently Obsessed With", emoji: "🤩" },
   pets: { label: "Pets", emoji: "🐾" },
@@ -273,7 +276,7 @@ export const CATEGORIES: { title: string; emoji: string; fields: FieldKey[] }[] 
     title: "Life",
     emoji: "💬",
     fields: [
-      "relationshipStatus", "religion", "achievements", "currentlyObsessed",
+      "relationshipStatus", "religion", "bibleVerse", "achievements", "currentlyObsessed",
       "pets", "bucketList", "bornIn", "education", "cause",
     ],
   },
@@ -320,6 +323,14 @@ export const FIELD_ORDER: FieldKey[] = CATEGORIES.flatMap((c) => c.fields);
 
 export function categoryOfField(field: FieldKey): string {
   return CATEGORIES.find((c) => c.fields.includes(field))?.title ?? "";
+}
+
+// Some fields are conditional — only relevant given another answer. A field
+// that doesn't apply is hidden from the Customize panel and never rendered on
+// the HUD or public page. (Favorite Bible Verse only makes sense for Christians.)
+export function fieldApplies(field: FieldKey, data: ProfileData): boolean {
+  if (field === "bibleVerse") return data.religion === "Christianity";
+  return true;
 }
 
 // Option lists for dropdowns.
