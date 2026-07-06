@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "The terms for using thisisme.",
 };
 
-const CONTACT = "darrenchurn@gmail.com";
+const CONTACT = "theumbravaultlab@gmail.com";
 
 const sections: LegalSection[] = [
   {
@@ -85,7 +85,7 @@ const sections: LegalSection[] = [
   {
     heading: "12. Governing law",
     paras: [
-      "These Terms are governed by the laws of the operator's principal place of business [set your state/country], without regard to conflict-of-laws rules. Nothing here removes any mandatory consumer-protection rights you have where you live.",
+      "These Terms are governed by the laws of the State of Texas, United States of America, without regard to conflict-of-laws rules. Nothing here removes any mandatory consumer-protection rights you have where you live.",
     ],
   },
   {

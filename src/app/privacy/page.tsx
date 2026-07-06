@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "How thisisme collects, uses, and protects your data.",
 };
 
-const CONTACT = "darrenchurn@gmail.com";
+const CONTACT = "theumbravaultlab@gmail.com";
 
 const sections: LegalSection[] = [
   {
