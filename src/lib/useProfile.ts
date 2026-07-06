@@ -197,6 +197,23 @@ export function useProfile() {
               profile.data.username,
               buildPublicPayload(profile)
             ).catch(() => {});
+            // Bust the cached public page so the edit shows right away (the ISR
+            // window is only a fallback). Best-effort.
+            try {
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+              const token = session?.access_token;
+              if (token) {
+                await fetch("/api/revalidate", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ slug: profile.data.username }),
+                }).catch(() => {});
+              }
+            } catch {
+              /* ignore */
+            }
           }
         } catch {
           setSaveStatus("local");

@@ -3,7 +3,10 @@ import Link from "next/link";
 import { fetchPublicProfile } from "@/lib/supabaseServer";
 import { PublicProfileView } from "@/components/PublicProfileView";
 
-export const dynamic = "force-dynamic";
+// Public pages are read-heavy and change rarely, so they're cached (ISR).
+// fetchPublicProfile uses Next's data cache; the owner's save busts the path on
+// demand via /api/revalidate, and this window is just a safety net.
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,

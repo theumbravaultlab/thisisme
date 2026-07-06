@@ -7,6 +7,11 @@ import { rateLimit } from "@/lib/rateLimit";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { AVATAR_GEN_LIMITS } from "@/lib/types";
 
+// The stylize path chains several fal.ai calls (isolate → stylize → transparent
+// cut-out). Give the function the full budget so it isn't cut off before the
+// pipeline finishes. 60s is the Vercel Hobby ceiling; raise it on Pro if needed.
+export const maxDuration = 60;
+
 // ---- per-account generation metering ----------------------------------------
 // Metering is MONTHLY: both free and premium get an allowance that resets each
 // calendar month (see AVATAR_GEN_LIMITS). Only real stylized generations count;
@@ -225,7 +230,9 @@ async function stylize(
         // (needed for the cartoon look); lower values stay closer to a real
         // photo (needed for the beautify look).
         guidance_scale: guidanceScale,
-        num_inference_steps: 32,
+        // 28 steps keeps quality high while trimming a few seconds off the
+        // slowest step, reducing the chance of hitting the function timeout.
+        num_inference_steps: 28,
         output_format: "jpeg",
       }),
     },

@@ -15,7 +15,8 @@ function formatBirthday(iso: string): string {
   return `${months[m - 1]} ${d}`;
 }
 
-function introExtroLabel(v: number): string {
+// Shared by the compact card text and the CardBody slider label.
+export function introExtroLabel(v: number): string {
   if (v <= 20) return "Introvert";
   if (v < 45) return "Introvert-leaning";
   if (v <= 55) return "Ambivert";

@@ -19,6 +19,7 @@ import {
   zodiacFromBirthday,
 } from "@/lib/types";
 import { DateInput, ListEditor, Select, Slider, TextInput } from "./ui";
+import { introExtroLabel } from "@/lib/fieldDisplay";
 
 interface Props {
   field: FieldKey;
@@ -49,14 +50,6 @@ function formatHeight(cm: number): string {
     inch = 0;
   }
   return `${ft}'${inch}" · ${cm} cm`;
-}
-
-function introExtroLabel(v: number): string {
-  if (v <= 20) return "Introvert";
-  if (v < 45) return "Introvert-leaning";
-  if (v <= 55) return "Ambivert";
-  if (v < 80) return "Extrovert-leaning";
-  return "Extrovert";
 }
 
 // CardBody is rendered in edit mode inside the Customize panel.
