@@ -39,7 +39,6 @@ export const DEFAULT_PROFILE: Profile = {
     birthday: "1776-07-04",
     height: "20,310 ft at my tallest (Denali)",
     favoriteColor: "#B22234",
-    pronouns: "we/us",
     basedIn: "Washington, D.C.",
     languages: "English (no official one, actually)",
     whatIDo: "Global superpower",
@@ -96,8 +95,6 @@ export const DEFAULT_PROFILE: Profile = {
     name: true,
     birthday: true,
     age: true,
-    zodiac: false, // premium
-    pronouns: false, // premium
     height: false,
     basedIn: true,
     languages: false,
@@ -163,7 +160,6 @@ export function blankProfileData(): ProfileData {
     birthday: "",
     height: "",
     favoriteColor: "#7c5cff",
-    pronouns: "",
     basedIn: "",
     languages: "",
     whatIDo: "",

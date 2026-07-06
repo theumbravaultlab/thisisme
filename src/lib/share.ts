@@ -11,7 +11,6 @@ import { DEFAULT_PROFILE } from "./store";
 const SHAREABLE_SIMPLE: (keyof ProfileData)[] = [
   "birthday",
   "height",
-  "pronouns",
   "basedIn",
   "languages",
   "whatIDo",
@@ -111,9 +110,6 @@ export function buildPublicPayload(profile: Profile): Profile {
     data.birthYear = src.birthYear;
     data.ageDisplayMode = src.ageDisplayMode;
   }
-  // Zodiac is auto-derived from the birthday, so carry the birthday when the
-  // zodiac card is shared (even if the birthday card itself isn't).
-  if (keys.has("zodiac")) data.birthday = src.birthday;
   // Intro/Extro is numeric — copy it only when shared (default otherwise).
   data.introExtro = keys.has("introExtro") ? src.introExtro : DEFAULT_PROFILE.data.introExtro;
   for (const k of SHAREABLE_SIMPLE) {

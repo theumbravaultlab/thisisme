@@ -198,11 +198,14 @@ export function ProfileHud({
   const onDragEnd = (key: string, i: number, info: PanInfo) => {
     const stage = stageRef.current?.getBoundingClientRect();
     if (!stage) return;
-    const x = ((info.point.x - stage.left) / stage.width) * 100;
-    const y = ((info.point.y - stage.top) / stage.height) * 100;
+    // Move the card by exactly how far it was dragged, preserving the point the
+    // user grabbed — so it drops precisely where released, with no jump. (Using
+    // the raw pointer position would snap the card's center under the cursor.)
+    const start = posOf(i);
+    const dxPct = (info.offset.x / stage.width) * 100;
+    const dyPct = (info.offset.y / stage.height) * 100;
     const { hw, hh } = resolved[i];
-    // Drop it exactly where released (only clamped to stay on the stage).
-    setPosition(key, clampToStage({ x, y }, hw, hh));
+    setPosition(key, clampToStage({ x: start.x + dxPct, y: start.y + dyPct }, hw, hh));
     setDropVer((v) => ({ ...v, [key]: (v[key] ?? 0) + 1 }));
   };
 

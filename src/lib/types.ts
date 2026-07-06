@@ -54,11 +54,10 @@ export interface ProfileData {
 
   ageDisplayMode: AgeDisplayMode;
   birthYear: number | null;
-  birthday: string; // YYYY-MM-DD (also drives the auto "zodiac" field)
+  birthday: string; // YYYY-MM-DD
 
   height: string;
   favoriteColor: string;
-  pronouns: string;
   basedIn: string; // public city, e.g. "Austin, TX"
   languages: string; // "English, Spanish"
   whatIDo: string; // occupation / "what I do"
@@ -135,8 +134,6 @@ export interface FieldVisibility {
   name: boolean;
   age: boolean;
   birthday: boolean;
-  zodiac: boolean;
-  pronouns: boolean;
   height: boolean;
   basedIn: boolean;
   languages: boolean;
@@ -206,8 +203,6 @@ export const FIELD_META: Record<FieldKey, { label: string; emoji: string; premiu
   name: { label: "Name", emoji: "👋" },
   age: { label: "Age", emoji: "🎂" },
   birthday: { label: "Birthday", emoji: "🎈" },
-  zodiac: { label: "Zodiac Sign", emoji: "🔮", premium: true },
-  pronouns: { label: "Pronouns", emoji: "🏷️", premium: true },
   height: { label: "Height", emoji: "📏" },
   basedIn: { label: "Based In", emoji: "📍" },
   languages: { label: "Languages", emoji: "🗣️" },
@@ -263,7 +258,7 @@ export const CATEGORIES: { title: string; emoji: string; fields: FieldKey[] }[] 
     title: "Identity",
     emoji: "🪪",
     fields: [
-      "name", "birthday", "age", "zodiac", "pronouns",
+      "name", "birthday", "age",
       "height", "basedIn", "languages", "whatIDo", "favoriteColor",
     ],
   },
@@ -400,16 +395,6 @@ export const ENNEAGRAM_OPTIONS = [
   "9 · The Peacemaker",
 ];
 
-export const PRONOUN_OPTIONS = [
-  "she/her",
-  "he/him",
-  "they/them",
-  "she/they",
-  "he/they",
-  "any pronouns",
-  "ask me",
-];
-
 // Popular colors for the "Simple" color picker (name shown on hover).
 export const COLOR_PRESETS: { hex: string; name: string }[] = [
   { hex: "#ef4444", name: "Red" },
@@ -471,16 +456,3 @@ export const VISIBILITY_PRESETS: {
     ],
   },
 ];
-
-// Zodiac sign (with glyph) computed from a YYYY-MM-DD birthday. Empty if unset.
-export function zodiacFromBirthday(iso: string): string {
-  if (!iso) return "";
-  const [, m, d] = iso.split("-").map(Number);
-  if (!m || !d) return "";
-  const lastDay = [19, 18, 20, 19, 20, 20, 22, 22, 21, 22, 21, 19];
-  const signs = [
-    "♑ Capricorn", "♒ Aquarius", "♓ Pisces", "♈ Aries", "♉ Taurus", "♊ Gemini",
-    "♋ Cancer", "♌ Leo", "♍ Virgo", "♎ Libra", "♏ Scorpio", "♐ Sagittarius", "♑ Capricorn",
-  ];
-  return d <= lastDay[m - 1] ? signs[m - 1] : signs[m];
-}

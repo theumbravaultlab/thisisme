@@ -487,7 +487,7 @@ function BuiltinRow({
   data: ProfileData;
   update: <K extends keyof ProfileData>(key: K, value: ProfileData[K]) => void;
 }) {
-  // Some built-in fields (zodiac, pronouns) are premium — locked until upgrade.
+  // Built-in fields flagged premium (if any) stay locked until upgrade.
   const locked = Boolean(FIELD_META[field].premium) && !premium;
   return (
     <div className={`overflow-hidden rounded-xl border border-border bg-bg-elev transition ${on ? "" : "opacity-60"}`}>

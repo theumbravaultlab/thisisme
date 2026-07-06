@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { blankProfileData, DEFAULT_PROFILE, formatAge } from "./store";
-import { zodiacFromBirthday } from "./types";
 import { fieldToText } from "./fieldDisplay";
 
 describe("blankProfileData", () => {
@@ -24,15 +23,6 @@ describe("blankProfileData", () => {
   });
 });
 
-describe("zodiacFromBirthday", () => {
-  it("maps a July 4 birthday to Cancer", () => {
-    expect(zodiacFromBirthday("2000-07-04")).toContain("Cancer");
-  });
-  it("returns empty string for a missing birthday", () => {
-    expect(zodiacFromBirthday("")).toBe("");
-  });
-});
-
 describe("formatAge", () => {
   it("returns a dash when the birth year is unknown", () => {
     expect(formatAge(null, "exact")).toBe("—");
@@ -49,8 +39,5 @@ describe("fieldToText", () => {
   });
   it("joins list fields with a separator", () => {
     expect(fieldToText("achievements", data)).toContain("Moon");
-  });
-  it("derives zodiac from the birthday", () => {
-    expect(fieldToText("zodiac", data)).toContain("Cancer"); // 1776-07-04
   });
 });

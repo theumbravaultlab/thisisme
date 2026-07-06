@@ -12,11 +12,9 @@ import {
   SEASON_OPTIONS,
   LOVE_LANGUAGE_OPTIONS,
   ENNEAGRAM_OPTIONS,
-  PRONOUN_OPTIONS,
   COLOR_PRESETS,
   FONT_OPTIONS,
   fontVar,
-  zodiacFromBirthday,
 } from "@/lib/types";
 import { DateInput, ListEditor, Select, Slider, TextInput } from "./ui";
 import { introExtroLabel } from "@/lib/fieldDisplay";
@@ -95,21 +93,6 @@ export function CardBody({ field, data, update, premium = false }: Props) {
     case "birthday":
       return <DateInput value={data.birthday} onChange={(v) => update("birthday", v)} />;
 
-    case "zodiac": {
-      const sign = zodiacFromBirthday(data.birthday);
-      return (
-        <div className="rounded-lg border border-border bg-bg px-3 py-2 text-sm">
-          {sign ? (
-            <span>
-              {sign} <span className="text-fg-muted">· auto-set from your birthday</span>
-            </span>
-          ) : (
-            <span className="text-fg-muted">Set your birthday to reveal your sign.</span>
-          )}
-        </div>
-      );
-    }
-
     case "age":
       return (
         <div className="flex flex-col gap-3">
@@ -159,16 +142,6 @@ export function CardBody({ field, data, update, premium = false }: Props) {
 
     case "favoriteColor":
       return <ColorField value={data.favoriteColor} onChange={(v) => update("favoriteColor", v)} />;
-
-    case "pronouns":
-      return (
-        <Select
-          value={data.pronouns}
-          onChange={(v) => update("pronouns", v)}
-          options={PRONOUN_OPTIONS}
-          allowCustom={false}
-        />
-      );
 
     case "introExtro":
       return (

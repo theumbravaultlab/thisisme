@@ -1,7 +1,7 @@
 // Compact single-line text for a field, used inside consolidated category
 // cards (as opposed to CardBody's full editors or the old big per-field HUD).
 
-import { FieldKey, ProfileData, zodiacFromBirthday } from "./types";
+import { FieldKey, ProfileData } from "./types";
 import { formatAge } from "./store";
 
 function formatBirthday(iso: string): string {
@@ -33,8 +33,6 @@ export function fieldToText(field: FieldKey, data: ProfileData): string {
     }
     case "birthday":
       return formatBirthday(data.birthday);
-    case "zodiac":
-      return zodiacFromBirthday(data.birthday); // auto-derived from birthday
     case "introExtro":
       return introExtroLabel(data.introExtro);
     case "achievements":
